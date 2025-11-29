@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Sprout, CloudRain, Download, User, AlertTriangle, 
   CloudSun, Leaf, Droplets, MapPin, Camera, Mic, 
-  Search, X, Volume2, ShieldAlert, LogOut, Globe, MessageSquare, Send
+  Search, X, Volume2, LogOut, Globe, MessageSquare, Send
 } from 'lucide-react';
 import Papa from 'papaparse'; 
 
@@ -431,3 +431,98 @@ export default function Dashboard() {
              {weather && (
                <div className="bg-orange-50 border border-orange-200 p-5 rounded-xl flex gap-4 items-start">
                   <AlertTriangle className="text-orange-600 w-6 h-6 mt-1" />
+                  <div><h3 className="font-bold text-orange-900 text-lg">{t.advisory}</h3><p className="text-gray-800 mt-1">{getAdvisory(weather)}</p></div>
+               </div>
+             )}
+          </motion.div>
+        )}
+
+        {/* --- TAB: INVENTORY --- */}
+        {activeTab === 'inventory' && (
+          <motion.div initial={{opacity:0}} animate={{opacity:1}} className="space-y-4">
+            <h2 className="text-xl font-bold text-gray-800">{t.inventory} ({crops.length})</h2>
+            {crops.length === 0 && <p className="text-gray-400 text-center py-10">{t.emptyList}</p>}
+            {crops.map((crop) => (
+               <div key={crop.id} className="bg-white p-4 rounded-xl shadow-sm border-l-4 border-green-500">
+                  <h3 className="font-bold text-lg">{crop.cropType}</h3>
+                  <div className="text-sm text-gray-500 grid grid-cols-2 gap-2 mt-2"><p>⚖️ {crop.weight} kg</p><p>📅 {crop.date}</p><p>📍 {crop.location}</p><p>🏠 {crop.storage}</p></div>
+               </div>
+            ))}
+          </motion.div>
+        )}
+
+        {/* --- TAB: ADD CROP --- */}
+        {activeTab === 'add' && (
+           <div className="bg-white p-6 rounded-xl shadow-sm">
+             <h2 className="text-xl font-bold mb-4">{t.addCropTitle}</h2>
+             <form onSubmit={handleAddCrop} className="space-y-4">
+               <select className="w-full p-3 border rounded bg-gray-50" onChange={(e) => setFormData({...formData, cropType: e.target.value})}>
+                 {CROP_TYPES.map((c, i) => <option key={i} value={lang === 'bn' ? c.bn : c.en}>{lang === 'bn' ? c.bn : c.en}</option>)}
+               </select>
+               <input required type="number" placeholder={t.weight} className="w-full p-3 border rounded" onChange={(e) => setFormData({...formData, weight: e.target.value})} />
+               <input required type="date" className="w-full p-3 border rounded" onChange={(e) => setFormData({...formData, date: e.target.value})} />
+               <select className="w-full p-3 border rounded" onChange={(e) => setFormData({...formData, location: e.target.value})}>{Object.keys(DISTRICT_COORDS).map(d => <option key={d} value={d}>{d}</option>)}</select>
+               <select className="w-full p-3 border rounded" onChange={(e) => setFormData({...formData, storage: e.target.value})}>{STORAGE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}</select>
+               <button className="w-full bg-green-600 text-white font-bold py-3 rounded">{t.save}</button>
+             </form>
+           </div>
+        )}
+
+        {/* --- TAB: PROFILE --- */}
+        {activeTab === 'profile' && (
+           <div className="bg-white p-6 rounded-xl shadow-sm text-center">
+              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4"><User size={40} className="text-green-600"/></div>
+              <h2 className="text-xl font-bold">{user.name}</h2>
+              <p className="text-gray-500">{user.phone}</p>
+              <button onClick={handleLogout} className="mt-6 bg-red-100 text-red-600 px-6 py-2 rounded-full font-bold flex items-center gap-2 mx-auto"><LogOut size={16}/> {t.logout}</button>
+           </div>
+        )}
+
+      </div>
+
+      {/* --- Floating Voice Button --- */}
+      <button onClick={startListening} className={`fixed bottom-24 right-4 p-4 rounded-full shadow-xl z-30 transition-all ${isListening ? 'bg-red-500 scale-110' : 'bg-blue-600' } text-white`}>
+        {isListening ? <Volume2 className="animate-pulse" /> : <Mic />}
+      </button>
+
+      {/* --- Chat Box (Visual RAG Fallback) --- */}
+      <AnimatePresence>
+        {showChat && (
+          <motion.div 
+            initial={{y:100}} animate={{y:0}} exit={{y:100}} 
+            className="fixed bottom-0 left-0 w-full bg-white rounded-t-2xl shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-[60] p-4 border-t border-green-200"
+          >
+             <div className="flex justify-between items-center mb-2 border-b pb-2">
+                <h3 className="font-bold text-green-800 flex items-center gap-2"><MessageSquare size={18}/> {t.chatTitle}</h3>
+                <button onClick={() => setShowChat(false)}><X size={20} className="text-gray-500"/></button>
+             </div>
+             <div className="h-40 overflow-y-auto mb-3 space-y-2 bg-gray-50 p-2 rounded">
+               {chatMessages.map((msg, i) => (
+                 <div key={i} className={`p-2 rounded-lg text-sm max-w-[80%] ${msg.sender === 'user' ? 'bg-blue-100 ml-auto' : 'bg-green-100'}`}>{msg.text}</div>
+               ))}
+             </div>
+             <div className="flex gap-2">
+               <input 
+                 type="text" 
+                 value={chatInput} 
+                 onChange={(e) => setChatInput(e.target.value)} 
+                 placeholder={t.chatPlaceholder} 
+                 className="flex-1 border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none" 
+               />
+               <button onClick={sendChatMessage} className="bg-green-600 text-white px-4 rounded-lg"><Send size={20} /></button>
+             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* --- Bottom Nav --- */}
+      <div className="fixed bottom-0 w-full bg-white border-t flex justify-around py-2 pb-5 text-gray-500 text-xs font-medium z-50">
+        <button onClick={() => setActiveTab('map')} className={`flex flex-col items-center p-2 ${activeTab === 'map' ? 'text-green-600' : ''}`}><MapPin size={24} /> {t.map}</button>
+        <button onClick={() => setActiveTab('weather')} className={`flex flex-col items-center p-2 ${activeTab === 'weather' ? 'text-green-600' : ''}`}><CloudSun size={24} /> {t.weather}</button>
+        <button onClick={() => setActiveTab('add')} className="relative"><div className="bg-green-600 text-white p-3 rounded-full -mt-6 shadow-lg border-4 border-slate-50"><Sprout size={24} /></div></button>
+        <button onClick={() => setActiveTab('scanner')} className={`flex flex-col items-center p-2 ${activeTab === 'scanner' ? 'text-green-600' : ''}`}><Camera size={24} /> {t.scanner}</button>
+        <button onClick={() => setActiveTab('profile')} className={`flex flex-col items-center p-2 ${activeTab === 'profile' ? 'text-green-600' : ''}`}><User size={24} /> {t.profile}</button>
+      </div>
+    </div>
+  );
+}
