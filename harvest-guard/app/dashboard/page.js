@@ -171,7 +171,7 @@ export default function Dashboard() {
     setChatMessages([{ sender: 'bot', text: lang === 'bn' ? 'আমি কৃষি সহকারী। আপনার কি সাহায্য দরকার?' : 'I am Agri Assistant. How can I help?' }]);
   }, [lang]);
 
-  // --- DATA LOADING (User Specific) ---
+  // --- DATA LOADING ---
   useEffect(() => {
     const storedUser = localStorage.getItem('hg_user');
     if (storedUser) {
@@ -218,8 +218,6 @@ export default function Dashboard() {
     setCrops(updatedCrops);
     
     localStorage.setItem(`hg_crops_${user.phone}`, JSON.stringify(updatedCrops));
-    
-    // THE FIX: Immediately update weather to the new crop's location
     fetchWeather(formData.location);
 
     alert(lang === 'bn' ? 'ফসল সফলভাবে যোগ করা হয়েছে!' : 'Crop added successfully!');
@@ -238,7 +236,6 @@ export default function Dashboard() {
     document.body.removeChild(link);
   };
 
-  // THE FIX: Also fetch weather when switching TO the weather tab
   useEffect(() => {
     if (user.registered && activeTab === 'weather') {
        fetchWeather(formData.location); 
@@ -288,6 +285,7 @@ export default function Dashboard() {
   const startListening = () => {
     if ('webkitSpeechRecognition' in window) {
       const recognition = new window.webkitSpeechRecognition();
+      // Ensure we ask for Bangla-BD
       recognition.lang = lang === 'bn' ? 'bn-BD' : 'en-US';
       recognition.start();
       setIsListening(true);
@@ -334,6 +332,17 @@ export default function Dashboard() {
     if (understood) {
         const utterance = new SpeechSynthesisUtterance(response);
         utterance.lang = lang === 'bn' ? 'bn-BD' : 'en-US';
+        
+        // --- VOICE FIX: FORCE BANGLA VOICE OBJECT ---
+        if (lang === 'bn') {
+            const voices = window.speechSynthesis.getVoices();
+            // Try to find a specific Bangla voice (Google Bangla, Bangla India, etc.)
+            const banglaVoice = voices.find(v => v.lang.includes('bn') || v.name.includes('Bangla') || v.name.includes('Bengali'));
+            if (banglaVoice) {
+                utterance.voice = banglaVoice;
+            }
+        }
+        
         window.speechSynthesis.speak(utterance);
     } else {
         setShowChat(true);
