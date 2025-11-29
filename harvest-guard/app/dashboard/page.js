@@ -139,7 +139,7 @@ const generateNeighbors = () => {
 };
 
 export default function Dashboard() {
-  const [activeTab, setActiveTab] = useState('inventory'); // Default tab is now INVENTORY
+  const [activeTab, setActiveTab] = useState('inventory');
   const [loading, setLoading] = useState(false);
   const [lang, setLang] = useState('bn');
   const t = TRANSLATIONS[lang];
@@ -171,11 +171,25 @@ export default function Dashboard() {
     setChatMessages([{ sender: 'bot', text: lang === 'bn' ? 'আমি কৃষি সহকারী। আপনার কি সাহায্য দরকার?' : 'I am Agri Assistant. How can I help?' }]);
   }, [lang]);
 
+  // --- FIXED DATA LOADING (User Specific) ---
   useEffect(() => {
+    // 1. Check if a user is logged in
     const storedUser = localStorage.getItem('hg_user');
-    const storedCrops = localStorage.getItem('hg_crops');
-    if (storedUser) setUser(JSON.parse(storedUser));
-    if (storedCrops) setCrops(JSON.parse(storedCrops));
+    if (storedUser) {
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+        
+        // 2. Load crops specific to THIS phone number
+        // KEY: 'hg_crops_' + phone number
+        const userCropsKey = `hg_crops_${parsedUser.phone}`;
+        const storedCrops = localStorage.getItem(userCropsKey);
+        
+        if (storedCrops) {
+            setCrops(JSON.parse(storedCrops));
+        } else {
+            setCrops([]); // New user = empty list
+        }
+    }
   }, []);
 
   const handleRegister = (e) => {
@@ -183,11 +197,21 @@ export default function Dashboard() {
     const newUser = { ...user, registered: true };
     setUser(newUser);
     localStorage.setItem('hg_user', JSON.stringify(newUser));
+    
+    // Check if this user exists in DB, otherwise init empty
+    const userCropsKey = `hg_crops_${newUser.phone}`;
+    const existingCrops = localStorage.getItem(userCropsKey);
+    if (existingCrops) {
+        setCrops(JSON.parse(existingCrops));
+    } else {
+        setCrops([]);
+    }
   };
 
   const handleLogout = () => {
     localStorage.removeItem('hg_user');
     setUser({ name: '', phone: '', registered: false });
+    setCrops([]); // Clear state immediately
     window.location.reload();
   };
 
@@ -196,9 +220,12 @@ export default function Dashboard() {
     const newCrop = { id: Date.now(), ...formData, status: 'Active', risk: 'Calculating...' };
     let updatedCrops = [...crops, newCrop];
     setCrops(updatedCrops);
-    localStorage.setItem('hg_crops', JSON.stringify(updatedCrops));
+    
+    // Save to USER SPECIFIC KEY
+    localStorage.setItem(`hg_crops_${user.phone}`, JSON.stringify(updatedCrops));
+    
     alert(lang === 'bn' ? 'ফসল সফলভাবে যোগ করা হয়েছে!' : 'Crop added successfully!');
-    setActiveTab('inventory'); // Go back to list after adding
+    setActiveTab('inventory'); 
   };
 
   const exportData = () => {
@@ -207,7 +234,7 @@ export default function Dashboard() {
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', 'harvest_guard_data.csv');
+    link.setAttribute('download', `harvest_guard_${user.phone}.csv`); // Personalized filename
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -215,7 +242,6 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (user.registered) {
-       // Always fetch weather for the farmer's location if registered
        fetchWeather(formData.location); 
     }
   }, [user.registered]);
@@ -235,7 +261,6 @@ export default function Dashboard() {
         maxTemp: data.daily.temperature_2m_max[0]
       });
 
-      // B2: SMS SIMULATION
       if (data.daily.precipitation_probability_max[0] > 80) {
         console.log(`%c[SMS ALERT]: Critical Weather! Cover crops.`, "color: red; font-size: 14px;");
       }
@@ -283,13 +308,11 @@ export default function Dashboard() {
     }
   };
 
-  // --- IMPROVED VOICE RESPONSE ---
   const handleVoiceQuery = (text) => {
     const lower = text.toLowerCase();
     let response = "";
     let understood = false;
 
-    // List all unique crop names
     const cropNames = [...new Set(crops.map(c => c.cropType))].join(", ");
 
     if (lower.includes("অবস্থা") || lower.includes("status")) {
@@ -337,37 +360,35 @@ export default function Dashboard() {
     setChatInput("");
   };
 
-  // --- B2: STRICT SMART ALERT LOGIC ---
   const getAdvisory = (w) => {
     if (!w) return "";
     
-    // Check Crops
     const hasPotato = crops.some(c => c.cropType.includes("Potato") || c.cropType.includes("আলু"));
     const hasBrinjal = crops.some(c => c.cropType.includes("Brinjal") || c.cropType.includes("বেগুন"));
     const hasPaddy = crops.some(c => c.cropType.includes("Paddy") || c.cropType.includes("ধান"));
 
-    // 1. POTATO + High Humidity (PDF Example)
+    // 1. POTATO (PDF Example)
     if (hasPotato && w.humidity > 80) {
         return lang === 'bn' 
           ? "সতর্কতা: আগামীকাল বৃষ্টি হবে এবং আপনার আলুর গুদামে আর্দ্রতা বেশি। এখনই ফ্যান চালু করুন।" 
           : "Warning: High humidity in Potato storage. Turn on fans immediately.";
     }
 
-    // 2. BRINJAL + High Rain (Specific Crop Logic)
+    // 2. BRINJAL (Specific)
     if (hasBrinjal && w.rainChance > 50) {
         return lang === 'bn'
           ? "সতর্কতা: বেগুনের জমিতে পানি জমতে দেবেন না। ছত্রাকনাশক স্প্রে করুন।"
           : "Warning: Avoid water logging for Brinjal. Spray fungicides.";
     }
 
-    // 3. PADDY + Rain
+    // 3. PADDY (Specific)
     if (hasPaddy && w.rainChance > 70) {
         return lang === 'bn'
           ? "সতর্কতা: ধান শুকাতে সমস্যা হতে পারে। পলিথিন দিয়ে ঢেকে রাখুন।"
           : "Warning: Cover paddy with polythene to prevent moisture.";
     }
 
-    // 4. GENERAL BAD WEATHER (Fallback)
+    // 4. GENERAL BAD WEATHER
     if (w.rainChance > 80) {
         return lang === 'bn' ? t.weatherBad : "Warning: Heavy rain expected!";
     }
@@ -476,7 +497,7 @@ export default function Dashboard() {
           </motion.div>
         )}
 
-        {/* --- TAB: WEATHER (Updated Logic) --- */}
+        {/* --- TAB: WEATHER --- */}
         {activeTab === 'weather' && (
           <motion.div initial={{opacity:0}} animate={{opacity:1}} className="space-y-4">
              <div className={`p-6 rounded-2xl shadow-lg relative overflow-hidden text-white ${weather?.rainChance > 80 ? 'bg-red-600' : 'bg-blue-600'}`}>
@@ -497,13 +518,11 @@ export default function Dashboard() {
           </motion.div>
         )}
 
-        {/* --- TAB: INVENTORY (Default view) --- */}
+        {/* --- TAB: INVENTORY --- */}
         {activeTab === 'inventory' && (
           <motion.div initial={{opacity:0}} animate={{opacity:1}} className="space-y-4">
             <h2 className="text-xl font-bold text-gray-800">{t.inventory} ({crops.length})</h2>
             {crops.length === 0 && <p className="text-gray-400 text-center py-10">{t.emptyList}</p>}
-            
-            {/* INVENTORY LIST */}
             {crops.map((crop) => (
                <div key={crop.id} className="bg-white p-4 rounded-xl shadow-sm border-l-4 border-green-500">
                   <h3 className="font-bold text-lg">{crop.cropType}</h3>
@@ -513,7 +532,7 @@ export default function Dashboard() {
           </motion.div>
         )}
 
-        {/* --- TAB: ADD CROP (Separate from Inventory) --- */}
+        {/* --- TAB: ADD CROP --- */}
         {activeTab === 'add' && (
            <div className="bg-white p-6 rounded-xl shadow-sm">
              <h2 className="text-xl font-bold mb-4">{t.addCropTitle}</h2>
