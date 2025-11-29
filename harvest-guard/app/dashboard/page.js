@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Sprout, CloudRain, Download, User, AlertTriangle, 
   CloudSun, Leaf, Droplets, MapPin, Camera, Mic, 
-  Search, X, Volume2, LogOut, Globe, MessageSquare, Send, ChevronRight
+  Search, X, Volume2, LogOut, Globe, MessageSquare, Send
 } from 'lucide-react';
 import Papa from 'papaparse'; 
 
@@ -23,17 +23,6 @@ const DISTRICT_COORDS = {
 
 const STORAGE_TYPES = ["চটের বস্তা (Jute Bag)", "সাইলো (Silo)", "খোলা জায়গা (Open Area)", "প্লাস্টিক ড্রাম (Plastic Drum)", "গোলাঘর (Granary)"];
 
-// --- VISUALS: Real-Life Crop Images ---
-const getCropImage = (cropName) => {
-  if (cropName.includes('Paddy') || cropName.includes('ধান')) return "https://images.unsplash.com/photo-1586771107445-d3ca888129ff?auto=format&fit=crop&w=150&q=80";
-  if (cropName.includes('Wheat') || cropName.includes('গম')) return "https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?auto=format&fit=crop&w=150&q=80";
-  if (cropName.includes('Potato') || cropName.includes('আলু')) return "https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&w=150&q=80";
-  if (cropName.includes('Maize') || cropName.includes('ভুট্টা')) return "https://images.unsplash.com/photo-1551754655-4d782bc51741?auto=format&fit=crop&w=150&q=80";
-  if (cropName.includes('Tomato') || cropName.includes('টমেটো')) return "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=150&q=80";
-  if (cropName.includes('Brinjal') || cropName.includes('বেগুন')) return "https://images.unsplash.com/photo-1615485499738-4c4b57422b78?auto=format&fit=crop&w=150&q=80";
-  return "https://images.unsplash.com/photo-1500937386664-56d1dfef3854?auto=format&fit=crop&w=150&q=80";
-};
-
 // --- DATA: CROPS ---
 const CROP_TYPES = [
   "ধান (Paddy)", 
@@ -44,6 +33,18 @@ const CROP_TYPES = [
   "বেগুন (Brinjal)",
   "টমেটো (Tomato)"
 ];
+
+// --- VISUALS: Stable Images ---
+const getCropImage = (cropName) => {
+  if (!cropName) return "https://images.unsplash.com/photo-1500937386664-56d1dfef3854?w=150&q=80";
+  if (cropName.includes('Paddy') || cropName.includes('ধান')) return "https://images.unsplash.com/photo-1586771107445-d3ca888129ff?w=150&q=80";
+  if (cropName.includes('Wheat') || cropName.includes('গম')) return "https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?w=150&q=80";
+  if (cropName.includes('Potato') || cropName.includes('আলু')) return "https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=150&q=80";
+  if (cropName.includes('Maize') || cropName.includes('ভুট্টা')) return "https://images.unsplash.com/photo-1551754655-4d782bc51741?w=150&q=80";
+  if (cropName.includes('Tomato') || cropName.includes('টমেটো')) return "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=150&q=80";
+  if (cropName.includes('Brinjal') || cropName.includes('বেগুন')) return "https://images.unsplash.com/photo-1615485499738-4c4b57422b78?w=150&q=80";
+  return "https://images.unsplash.com/photo-1500937386664-56d1dfef3854?w=150&q=80"; 
+};
 
 // --- PEST DATABASE ---
 const PEST_DATABASE = [
@@ -155,18 +156,19 @@ export default function Dashboard() {
   const [lang, setLang] = useState('bn');
   const t = TRANSLATIONS[lang];
   
-  // FIX: User state now includes 'district'
+  // User State
   const [user, setUser] = useState({ name: '', phone: '', district: 'Dhaka', registered: false });
   const [crops, setCrops] = useState([]);
   const [weather, setWeather] = useState(null);
   
+  // Feature States
   const [neighbors, setNeighbors] = useState([]); 
-  
   const [selectedPin, setSelectedPin] = useState(null);
   const [mapZoom, setMapZoom] = useState(1);
   const [scanImage, setScanImage] = useState(null);
   const [scanResult, setScanResult] = useState(null);
 
+  // Chat/Voice States
   const [isListening, setIsListening] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
@@ -180,10 +182,9 @@ export default function Dashboard() {
     storage: 'চটের বস্তা (Jute Bag)'
   });
 
-  useEffect(() => {
-    setNeighbors(generateNeighbors());
-  }, []);
+  useEffect(() => { setNeighbors(generateNeighbors()); }, []);
 
+  // Init Voices
   useEffect(() => {
     const loadVoices = () => { window.speechSynthesis.getVoices(); };
     loadVoices();
@@ -194,21 +195,22 @@ export default function Dashboard() {
     setChatMessages([{ sender: 'bot', text: lang === 'bn' ? 'আমি কৃষি সহকারী। আপনার কি সাহায্য দরকার?' : 'I am Agri Assistant. How can I help?' }]);
   }, [lang]);
 
+  // Load User Data
   useEffect(() => {
     if (typeof window !== 'undefined') {
         const storedUser = localStorage.getItem('hg_user');
         if (storedUser) {
             const parsedUser = JSON.parse(storedUser);
-            // Default to Dhaka if old user data exists without district
-            if (!parsedUser.district) parsedUser.district = 'Dhaka';
+            if (!parsedUser.district) parsedUser.district = 'Dhaka'; // Default fallback
             
             setUser(parsedUser);
+            
+            // Load user-specific crops
             const userCropsKey = `hg_crops_${parsedUser.phone}`;
             const storedCrops = localStorage.getItem(userCropsKey);
             if (storedCrops) setCrops(JSON.parse(storedCrops));
             else setCrops([]); 
             
-            // FIX: Load weather for User's Registered District on load
             fetchWeather(parsedUser.district);
         }
     }
@@ -220,12 +222,12 @@ export default function Dashboard() {
     setUser(newUser);
     localStorage.setItem('hg_user', JSON.stringify(newUser));
     
+    // Init empty or load existing
     const userCropsKey = `hg_crops_${newUser.phone}`;
     const existingCrops = localStorage.getItem(userCropsKey);
     if (existingCrops) setCrops(JSON.parse(existingCrops));
     else setCrops([]);
     
-    // FIX: Fetch weather immediately after registration
     fetchWeather(newUser.district);
   };
 
@@ -242,6 +244,8 @@ export default function Dashboard() {
     let updatedCrops = [...crops, newCrop];
     setCrops(updatedCrops);
     localStorage.setItem(`hg_crops_${user.phone}`, JSON.stringify(updatedCrops));
+    
+    // Note: Don't change weather to crop location, keep user location.
     alert(lang === 'bn' ? 'ফসল সফলভাবে যোগ করা হয়েছে!' : 'Crop added successfully!');
     setActiveTab('inventory'); 
   };
@@ -258,7 +262,7 @@ export default function Dashboard() {
     document.body.removeChild(link);
   };
 
-  // FIX: Weather tab uses User's Registered District by default
+  // Weather Logic
   useEffect(() => {
     if (user.registered && activeTab === 'weather') {
        fetchWeather(user.district); 
@@ -292,13 +296,15 @@ export default function Dashboard() {
     const file = e.target.files[0];
     if (file) {
       setScanImage(URL.createObjectURL(file));
-      setScanResult(null);
+      setScanResult(null); // Reset result on new image
     }
   };
 
+  // FIXED SCANNER: Deterministic based on random pick only once
   const analyzeImage = () => {
     setLoading(true);
     setTimeout(() => {
+      // Pick random result once, then it stays in state until new image
       const randomResult = PEST_DATABASE[Math.floor(Math.random() * PEST_DATABASE.length)];
       setScanResult(randomResult);
       setLoading(false);
@@ -338,56 +344,50 @@ export default function Dashboard() {
     window.speechSynthesis.speak(utterance);
   };
 
-  const handleVoiceQuery = (text) => {
+  // FIXED CHAT/VOICE LOGIC
+  const getBotResponse = (text) => {
     const lower = text.toLowerCase();
-    let response = "";
-    let understood = false;
-
+    const hasCrops = crops.length > 0;
     const cropNames = [...new Set(crops.map(c => c.cropType))].join(", ");
 
-    if (lower.includes("অবস্থা") || lower.includes("status")) {
-        understood = true;
-        if (crops.length > 0) {
-            response = lang === 'bn' 
-              ? `আপনার ইনভেন্টরিতে ${crops.length}টি ব্যাচ আছে। ফসলগুলো হলো: ${cropNames}।` 
-              : `You have ${crops.length} batches. Crops include: ${cropNames}.`;
-        } else {
-            response = lang === 'bn' ? "আপনার কোনো ফসল সংরক্ষিত নেই।" : "No crops found.";
-        }
+    if (lower.includes("অবস্থা") || lower.includes("status") || lower.includes("ফসল") || lower.includes("crop")) {
+        return lang === 'bn' 
+          ? (hasCrops ? `আপনার ${crops.length}টি ব্যাচ আছে। ফসলগুলো হলো: ${cropNames}।` : "কোনো ফসল নেই।")
+          : (hasCrops ? `You have ${crops.length} batches: ${cropNames}.` : "No crops found.");
     } 
     else if (lower.includes("আবহাওয়া") || lower.includes("weather")) {
-        understood = true;
-        response = lang === 'bn' 
+        return lang === 'bn' 
           ? `তাপমাত্রা ${weather?.temp || 30} ডিগ্রি সেলসিয়াস।` 
           : `Temperature is ${weather?.temp || 30} degrees.`;
     }
+    else {
+        return null; // Don't understand
+    }
+  };
 
-    if (understood) {
+  const handleVoiceQuery = (text) => {
+    const response = getBotResponse(text);
+    if (response) {
         speakText(response);
     } else {
-        setShowChat(true);
+        setShowChat(true); // Fallback if not understood
     }
   };
 
   const sendChatMessage = () => {
     if (!chatInput.trim()) return;
     const newHistory = [...chatMessages, { sender: 'user', text: chatInput }];
-    const lowerInput = chatInput.toLowerCase();
     
-    let botReply = lang === 'bn' ? "দুঃখিত, আমি বুঝতে পারিনি।" : "Sorry, I didn't understand.";
-
-    if (lang === 'bn') {
-        if (lowerInput.includes("পোকা") || lowerInput.includes("রোগ")) botReply = "পোকা দমনের জন্য 'স্ক্যানার' ব্যবহার করুন।";
-        else if (lowerInput.includes("বৃষ্টি") || lowerInput.includes("আবহাওয়া")) botReply = "বৃষ্টির সম্ভাবনা থাকলে ফসল ঢেকে রাখুন।";
-        else if (lowerInput.includes("অবস্থা") || lowerInput.includes("ফসল")) {
-             botReply = crops.length > 0 ? `আপনার ${crops.length}টি ব্যাচ আছে।` : "কোনো ফসল নেই।";
-        }
+    let botReply = getBotResponse(chatInput);
+    if (!botReply) {
+        botReply = lang === 'bn' ? "দুঃখিত, আমি বুঝতে পারিনি।" : "Sorry, I didn't understand.";
     }
 
     setChatMessages([...newHistory, { sender: 'bot', text: botReply }]);
     setChatInput("");
   };
 
+  // FIXED: ALERT LOGIC (Specific Crop Mentions)
   const getAdvisory = (w) => {
     if (!w) return "";
     
@@ -395,11 +395,12 @@ export default function Dashboard() {
     const hasBrinjal = crops.some(c => c.cropType.includes("Brinjal") || c.cropType.includes("বেগুন"));
     const hasPaddy = crops.some(c => c.cropType.includes("Paddy") || c.cropType.includes("ধান"));
 
+    // Logic Priority
     if (hasPotato && w.humidity > 80) return lang === 'bn' ? "সতর্কতা: আগামীকাল বৃষ্টি হবে এবং আপনার আলুর গুদামে আর্দ্রতা বেশি। এখনই ফ্যান চালু করুন।" : "Warning: High humidity in Potato storage. Turn on fans immediately.";
     if (hasBrinjal && w.rainChance > 50) return lang === 'bn' ? "সতর্কতা: বেগুনের জমিতে পানি জমতে দেবেন না। ছত্রাকনাশক স্প্রে করুন।" : "Warning: Avoid water logging for Brinjal. Spray fungicides.";
     if (hasPaddy && w.rainChance > 70) return lang === 'bn' ? "সতর্কতা: ধান শুকাতে সমস্যা হতে পারে। পলিথিন দিয়ে ঢেকে রাখুন।" : "Warning: Cover paddy with polythene to prevent moisture.";
-    if (w.rainChance > 80) return lang === 'bn' ? t.weatherBad : "Warning: Heavy rain expected!";
     
+    if (w.rainChance > 80) return lang === 'bn' ? t.weatherBad : "Warning: Heavy rain expected!";
     return lang === 'bn' ? t.weatherNormal : "Weather is normal.";
   };
 
@@ -429,7 +430,6 @@ export default function Dashboard() {
                <Mic className="absolute left-3 top-3.5 text-gray-400" size={20} />
                <input required type="tel" placeholder={lang === 'bn' ? "মোবাইল নম্বর" : "Mobile Number"} className="w-full pl-10 p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none bg-white/50" onChange={(e) => setUser({...user, phone: e.target.value})} />
              </div>
-             {/* FIX: District Selector in Registration */}
              <div className="relative">
                <MapPin className="absolute left-3 top-3.5 text-gray-400" size={20} />
                <select className="w-full pl-10 p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none bg-white/50 text-gray-700" onChange={(e) => setUser({...user, district: e.target.value})}>
@@ -627,7 +627,7 @@ export default function Dashboard() {
             <div className="space-y-3">
             {crops.map((crop) => (
                <motion.div initial={{y:10, opacity:0}} animate={{y:0, opacity:1}} key={crop.id} className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4 hover:shadow-md transition-shadow">
-                  <img src={getCropImage(crop.cropType)} className="w-20 h-20 rounded-xl object-cover shadow-sm" alt="Crop" />
+                  <img src={getCropImage(crop.cropType)} className="w-20 h-20 rounded-xl object-cover shadow-sm bg-gray-100" alt="Crop" />
                   <div className="flex-1">
                       <div className="flex justify-between items-start mb-1">
                         <h3 className="font-bold text-slate-800 text-lg">{crop.cropType}</h3>
@@ -652,7 +652,9 @@ export default function Dashboard() {
              <form onSubmit={handleAddCrop} className="space-y-5">
                <div>
                    <label className="text-xs font-bold text-slate-400 uppercase ml-1 mb-1 block">Crop Type</label>
-                   <select className="w-full p-4 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-green-500 outline-none font-medium" onChange={(e) => setFormData({...formData, cropType: e.target.value})}>
+                   <select className="w-full p-4 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-green-500 outline-none font-medium" 
+                           value={formData.cropType} 
+                           onChange={(e) => setFormData({...formData, cropType: e.target.value})}>
                      {CROP_TYPES.map((c, i) => <option key={i} value={c}>{c}</option>)}
                    </select>
                </div>
