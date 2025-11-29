@@ -171,23 +171,20 @@ export default function Dashboard() {
     setChatMessages([{ sender: 'bot', text: lang === 'bn' ? 'আমি কৃষি সহকারী। আপনার কি সাহায্য দরকার?' : 'I am Agri Assistant. How can I help?' }]);
   }, [lang]);
 
-  // --- FIXED DATA LOADING (User Specific) ---
+  // --- DATA LOADING (User Specific) ---
   useEffect(() => {
-    // 1. Check if a user is logged in
     const storedUser = localStorage.getItem('hg_user');
     if (storedUser) {
         const parsedUser = JSON.parse(storedUser);
         setUser(parsedUser);
         
-        // 2. Load crops specific to THIS phone number
-        // KEY: 'hg_crops_' + phone number
         const userCropsKey = `hg_crops_${parsedUser.phone}`;
         const storedCrops = localStorage.getItem(userCropsKey);
         
         if (storedCrops) {
             setCrops(JSON.parse(storedCrops));
         } else {
-            setCrops([]); // New user = empty list
+            setCrops([]); 
         }
     }
   }, []);
@@ -198,7 +195,6 @@ export default function Dashboard() {
     setUser(newUser);
     localStorage.setItem('hg_user', JSON.stringify(newUser));
     
-    // Check if this user exists in DB, otherwise init empty
     const userCropsKey = `hg_crops_${newUser.phone}`;
     const existingCrops = localStorage.getItem(userCropsKey);
     if (existingCrops) {
@@ -211,7 +207,7 @@ export default function Dashboard() {
   const handleLogout = () => {
     localStorage.removeItem('hg_user');
     setUser({ name: '', phone: '', registered: false });
-    setCrops([]); // Clear state immediately
+    setCrops([]); 
     window.location.reload();
   };
 
@@ -221,9 +217,11 @@ export default function Dashboard() {
     let updatedCrops = [...crops, newCrop];
     setCrops(updatedCrops);
     
-    // Save to USER SPECIFIC KEY
     localStorage.setItem(`hg_crops_${user.phone}`, JSON.stringify(updatedCrops));
     
+    // THE FIX: Immediately update weather to the new crop's location
+    fetchWeather(formData.location);
+
     alert(lang === 'bn' ? 'ফসল সফলভাবে যোগ করা হয়েছে!' : 'Crop added successfully!');
     setActiveTab('inventory'); 
   };
@@ -234,17 +232,18 @@ export default function Dashboard() {
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', `harvest_guard_${user.phone}.csv`); // Personalized filename
+    link.setAttribute('download', `harvest_guard_${user.phone}.csv`); 
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
+  // THE FIX: Also fetch weather when switching TO the weather tab
   useEffect(() => {
-    if (user.registered) {
+    if (user.registered && activeTab === 'weather') {
        fetchWeather(formData.location); 
     }
-  }, [user.registered]);
+  }, [activeTab]);
 
   const fetchWeather = async (city) => {
     setLoading(true);
