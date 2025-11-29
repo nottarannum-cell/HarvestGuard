@@ -86,7 +86,9 @@ const TRANSLATIONS = {
     emptyList: "কোন তথ্য পাওয়া যায়নি। নতুন ফসল যোগ করুন।",
     mapPopupRisk: "ঝুঁকি",
     mapPopupCrop: "ফসল",
-    mapPopupTime: "আপডেট"
+    mapPopupTime: "আপডেট",
+    weatherBad: "সতর্কতা: আগামীকাল বৃষ্টি ৮৫% → আজই ফসল ঢেকে রাখুন!",
+    weatherNormal: "আবহাওয়া স্বাভাবিক আছে। নিয়মিত পর্যবেক্ষণ করুন।"
   },
   en: {
     appTitle: "HarvestGuard",
@@ -119,7 +121,9 @@ const TRANSLATIONS = {
     emptyList: "No data found. Add new crop.",
     mapPopupRisk: "Risk",
     mapPopupCrop: "Crop",
-    mapPopupTime: "Updated"
+    mapPopupTime: "Updated",
+    weatherBad: "Warning: Rain expected (85%). Cover crops immediately!",
+    weatherNormal: "Weather is normal. Monitor regularly."
   }
 };
 
@@ -135,24 +139,21 @@ const generateNeighbors = () => {
 };
 
 export default function Dashboard() {
-  const [activeTab, setActiveTab] = useState('inventory');
+  const [activeTab, setActiveTab] = useState('inventory'); // Default tab is now INVENTORY
   const [loading, setLoading] = useState(false);
-  const [lang, setLang] = useState('bn'); // INITIAL BANGLA
+  const [lang, setLang] = useState('bn');
   const t = TRANSLATIONS[lang];
   
-  // --- Data States ---
   const [user, setUser] = useState({ name: '', phone: '', registered: false });
   const [crops, setCrops] = useState([]);
   const [weather, setWeather] = useState(null);
   
-  // --- Feature States ---
   const [neighbors] = useState(generateNeighbors());
   const [selectedPin, setSelectedPin] = useState(null);
   const [mapZoom, setMapZoom] = useState(1);
   const [scanImage, setScanImage] = useState(null);
   const [scanResult, setScanResult] = useState(null);
 
-  // --- Voice & Chat States ---
   const [isListening, setIsListening] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
@@ -197,7 +198,7 @@ export default function Dashboard() {
     setCrops(updatedCrops);
     localStorage.setItem('hg_crops', JSON.stringify(updatedCrops));
     alert(lang === 'bn' ? 'ফসল সফলভাবে যোগ করা হয়েছে!' : 'Crop added successfully!');
-    setActiveTab('inventory');
+    setActiveTab('inventory'); // Go back to list after adding
   };
 
   const exportData = () => {
@@ -213,10 +214,11 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    if (user.registered && activeTab === 'weather') {
+    if (user.registered) {
+       // Always fetch weather for the farmer's location if registered
        fetchWeather(formData.location); 
     }
-  }, [activeTab]);
+  }, [user.registered]);
 
   const fetchWeather = async (city) => {
     setLoading(true);
@@ -233,9 +235,9 @@ export default function Dashboard() {
         maxTemp: data.daily.temperature_2m_max[0]
       });
 
-      // --- B2: SMS SIMULATION FOR CRITICAL RISK ---
+      // B2: SMS SIMULATION
       if (data.daily.precipitation_probability_max[0] > 80) {
-        console.log(`%c[SMS ALERT SENT TO ${user.phone}]: Critical Weather Alert! Rain expected. Cover crops immediately.`, "color: red; font-size: 14px; font-weight: bold;");
+        console.log(`%c[SMS ALERT]: Critical Weather! Cover crops.`, "color: red; font-size: 14px;");
       }
 
     } catch (error) { console.error(error); }
@@ -281,22 +283,23 @@ export default function Dashboard() {
     }
   };
 
+  // --- IMPROVED VOICE RESPONSE ---
   const handleVoiceQuery = (text) => {
     const lower = text.toLowerCase();
     let response = "";
     let understood = false;
 
-    const hasCrops = crops.length > 0;
-    const lastCrop = hasCrops ? crops[crops.length - 1] : null;
+    // List all unique crop names
+    const cropNames = [...new Set(crops.map(c => c.cropType))].join(", ");
 
     if (lower.includes("অবস্থা") || lower.includes("status")) {
         understood = true;
-        if (hasCrops) {
+        if (crops.length > 0) {
             response = lang === 'bn' 
-              ? `আপনার ${crops.length}টি ব্যাচ আছে। সর্বশেষ ${lastCrop.cropType}।` 
-              : `You have ${crops.length} batches. Last one is ${lastCrop.cropType}.`;
+              ? `আপনার ইনভেন্টরিতে ${crops.length}টি ব্যাচ আছে। ফসলগুলো হলো: ${cropNames}।` 
+              : `You have ${crops.length} batches. Crops include: ${cropNames}.`;
         } else {
-            response = lang === 'bn' ? "আপনার কোনো ফসল নেই।" : "No crops found.";
+            response = lang === 'bn' ? "আপনার কোনো ফসল সংরক্ষিত নেই।" : "No crops found.";
         }
     } 
     else if (lower.includes("আবহাওয়া") || lower.includes("weather")) {
@@ -325,37 +328,51 @@ export default function Dashboard() {
     if (lang === 'bn') {
         if (lowerInput.includes("পোকা") || lowerInput.includes("রোগ")) botReply = "পোকা দমনের জন্য 'স্ক্যানার' ব্যবহার করুন।";
         else if (lowerInput.includes("বৃষ্টি") || lowerInput.includes("আবহাওয়া")) botReply = "বৃষ্টির সম্ভাবনা থাকলে ফসল ঢেকে রাখুন।";
-        else if (lowerInput.includes("অবস্থা") || lowerInput.includes("ফসল")) botReply = crops.length > 0 ? `আপনার ${crops.length}টি ফসলের ব্যাচ আছে।` : "আপনার কোনো ফসল নেই।";
+        else if (lowerInput.includes("অবস্থা") || lowerInput.includes("ফসল")) {
+             botReply = crops.length > 0 ? `আপনার ${crops.length}টি ব্যাচ আছে।` : "কোনো ফসল নেই।";
+        }
     }
 
     setChatMessages([...newHistory, { sender: 'bot', text: botReply }]);
     setChatInput("");
   };
 
-  // --- B2: SMART ALERT LOGIC (Strict PDF Requirement) ---
+  // --- B2: STRICT SMART ALERT LOGIC ---
   const getAdvisory = (w) => {
     if (!w) return "";
     
-    // Check if user has Potato (Part B2 Requirement)
+    // Check Crops
     const hasPotato = crops.some(c => c.cropType.includes("Potato") || c.cropType.includes("আলু"));
+    const hasBrinjal = crops.some(c => c.cropType.includes("Brinjal") || c.cropType.includes("বেগুন"));
+    const hasPaddy = crops.some(c => c.cropType.includes("Paddy") || c.cropType.includes("ধান"));
 
-    // B2: "Good Alert" (Explicit from PDF)
-    // "Tomorrow it will rain and humidity is high in potato storage. Turn on fans now."
-    if (hasPotato && (w.humidity > 60 || w.rainChance > 40)) {
+    // 1. POTATO + High Humidity (PDF Example)
+    if (hasPotato && w.humidity > 80) {
         return lang === 'bn' 
-          ? "আগামীকাল বৃষ্টি হবে এবং আপনার আলুর গুদামে আর্দ্রতা বেশি। এখনই ফ্যান চালু করুন।" 
-          : "Tomorrow it will rain and humidity is high in potato storage. Turn on fans now.";
+          ? "সতর্কতা: আগামীকাল বৃষ্টি হবে এবং আপনার আলুর গুদামে আর্দ্রতা বেশি। এখনই ফ্যান চালু করুন।" 
+          : "Warning: High humidity in Potato storage. Turn on fans immediately.";
     }
 
-    // B2: "Bad Alert" (Explicit from User Prompt)
-    // "Weather is bad"
-    if (w.rainChance > 70) {
-        return lang === 'bn' 
-          ? "আবহাওয়া খারাপ (Weather is bad)।" 
-          : "Weather is bad.";
+    // 2. BRINJAL + High Rain (Specific Crop Logic)
+    if (hasBrinjal && w.rainChance > 50) {
+        return lang === 'bn'
+          ? "সতর্কতা: বেগুনের জমিতে পানি জমতে দেবেন না। ছত্রাকনাশক স্প্রে করুন।"
+          : "Warning: Avoid water logging for Brinjal. Spray fungicides.";
+    }
+
+    // 3. PADDY + Rain
+    if (hasPaddy && w.rainChance > 70) {
+        return lang === 'bn'
+          ? "সতর্কতা: ধান শুকাতে সমস্যা হতে পারে। পলিথিন দিয়ে ঢেকে রাখুন।"
+          : "Warning: Cover paddy with polythene to prevent moisture.";
+    }
+
+    // 4. GENERAL BAD WEATHER (Fallback)
+    if (w.rainChance > 80) {
+        return lang === 'bn' ? t.weatherBad : "Warning: Heavy rain expected!";
     }
     
-    return lang === 'bn' ? "আবহাওয়া স্বাভাবিক আছে।" : "Weather is normal.";
+    return lang === 'bn' ? t.weatherNormal : "Weather is normal.";
   };
 
   if (!user.registered) {
@@ -459,7 +476,7 @@ export default function Dashboard() {
           </motion.div>
         )}
 
-        {/* --- TAB: WEATHER (B2: Smart Alert System) --- */}
+        {/* --- TAB: WEATHER (Updated Logic) --- */}
         {activeTab === 'weather' && (
           <motion.div initial={{opacity:0}} animate={{opacity:1}} className="space-y-4">
              <div className={`p-6 rounded-2xl shadow-lg relative overflow-hidden text-white ${weather?.rainChance > 80 ? 'bg-red-600' : 'bg-blue-600'}`}>
@@ -480,11 +497,13 @@ export default function Dashboard() {
           </motion.div>
         )}
 
-        {/* --- TAB: INVENTORY --- */}
+        {/* --- TAB: INVENTORY (Default view) --- */}
         {activeTab === 'inventory' && (
           <motion.div initial={{opacity:0}} animate={{opacity:1}} className="space-y-4">
             <h2 className="text-xl font-bold text-gray-800">{t.inventory} ({crops.length})</h2>
             {crops.length === 0 && <p className="text-gray-400 text-center py-10">{t.emptyList}</p>}
+            
+            {/* INVENTORY LIST */}
             {crops.map((crop) => (
                <div key={crop.id} className="bg-white p-4 rounded-xl shadow-sm border-l-4 border-green-500">
                   <h3 className="font-bold text-lg">{crop.cropType}</h3>
@@ -494,7 +513,7 @@ export default function Dashboard() {
           </motion.div>
         )}
 
-        {/* --- TAB: ADD CROP --- */}
+        {/* --- TAB: ADD CROP (Separate from Inventory) --- */}
         {activeTab === 'add' && (
            <div className="bg-white p-6 rounded-xl shadow-sm">
              <h2 className="text-xl font-bold mb-4">{t.addCropTitle}</h2>
@@ -564,6 +583,7 @@ export default function Dashboard() {
         <button onClick={() => setActiveTab('weather')} className={`flex flex-col items-center p-2 ${activeTab === 'weather' ? 'text-green-600' : ''}`}><CloudSun size={24} /> {t.weather}</button>
         <button onClick={() => setActiveTab('add')} className="relative"><div className="bg-green-600 text-white p-3 rounded-full -mt-6 shadow-lg border-4 border-slate-50"><Sprout size={24} /></div></button>
         <button onClick={() => setActiveTab('scanner')} className={`flex flex-col items-center p-2 ${activeTab === 'scanner' ? 'text-green-600' : ''}`}><Camera size={24} /> {t.scanner}</button>
+        <button onClick={() => setActiveTab('inventory')} className={`flex flex-col items-center p-2 ${activeTab === 'inventory' ? 'text-green-600' : ''}`}><Leaf size={24} /> {t.inventory}</button>
         <button onClick={() => setActiveTab('profile')} className={`flex flex-col items-center p-2 ${activeTab === 'profile' ? 'text-green-600' : ''}`}><User size={24} /> {t.profile}</button>
       </div>
     </div>
