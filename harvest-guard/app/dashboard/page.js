@@ -34,37 +34,24 @@ const CROP_TYPES = [
   "টমেটো (Tomato)"
 ];
 
-// --- VISUALS: FIXED & STABLE IMAGES (New Links) ---
+// --- VISUALS: FIXED & STABLE IMAGES ---
 const getCropImage = (cropName) => {
   if (!cropName) return "https://images.unsplash.com/photo-1599940824399-b87987ce0799?auto=format&fit=crop&w=300&q=80";
   
   const name = cropName.toLowerCase();
   
-  // Maize/Bhutta (Updated Link)
   if (name.includes('maize') || name.includes('ভুট্টা')) 
     return "https://images.unsplash.com/photo-1551754655-4d782bc51741?auto=format&fit=crop&w=300&q=80";
-  
-  // Brinjal/Begun (Updated Link)
   if (name.includes('brinjal') || name.includes('বেগুন')) 
     return "https://images.unsplash.com/photo-1615485499738-4c4b57422b78?auto=format&fit=crop&w=300&q=80";
-  
-  // Paddy/Rice
   if (name.includes('paddy') || name.includes('ধান')) 
     return "https://images.unsplash.com/photo-1586771107445-d3ca888129ff?auto=format&fit=crop&w=300&q=80";
-  
-  // Potato/Alu
   if (name.includes('potato') || name.includes('আলু')) 
     return "https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&w=300&q=80";
-    
-  // Wheat/Gom
   if (name.includes('wheat') || name.includes('গম')) 
     return "https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?auto=format&fit=crop&w=300&q=80";
-    
-  // Tomato
   if (name.includes('tomato') || name.includes('টমেটো')) 
     return "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=300&q=80";
-
-  // Mustard/Shorisha
   if (name.includes('mustard') || name.includes('সরিষা'))
     return "https://images.unsplash.com/photo-1505235687559-28b5f54645b7?auto=format&fit=crop&w=300&q=80";
 
@@ -351,19 +338,20 @@ export default function Dashboard() {
     window.speechSynthesis.speak(utterance);
   };
 
+  // --- FIXED: DETAILED VOICE/CHAT STATUS ---
   const handleVoiceQuery = (text) => {
     const lower = text.toLowerCase();
     let response = "";
     let understood = false;
 
-    const cropNames = [...new Set(crops.map(c => c.cropType))].join(", ");
-
-    if (lower.includes("অবস্থা") || lower.includes("status")) {
+    if (lower.includes("অবস্থা") || lower.includes("status") || lower.includes("ফসল") || lower.includes("crop")) {
         understood = true;
         if (crops.length > 0) {
+            // Get the last added crop for detail
+            const last = crops[crops.length - 1];
             response = lang === 'bn' 
-              ? `আপনার ইনভেন্টরিতে ${crops.length}টি ব্যাচ আছে। ফসলগুলো হলো: ${cropNames}।` 
-              : `You have ${crops.length} batches. Crops include: ${cropNames}.`;
+              ? `আপনার মোট ${crops.length}টি ব্যাচ আছে। সর্বশেষ ${last.date} তারিখে ${last.location}-এ ${last.weight} কেজি ${last.cropType} সংরক্ষণ করা হয়েছে।` 
+              : `You have ${crops.length} batches. Last: ${last.weight}kg ${last.cropType} stored in ${last.location} on ${last.date}.`;
         } else {
             response = lang === 'bn' ? "আপনার কোনো ফসল সংরক্ষিত নেই।" : "No crops found.";
         }
@@ -385,22 +373,23 @@ export default function Dashboard() {
   const sendChatMessage = () => {
     if (!chatInput.trim()) return;
     const newHistory = [...chatMessages, { sender: 'user', text: chatInput }];
-    const lowerInput = chatInput.toLowerCase();
+    const lower = chatInput.toLowerCase();
     
     let botReply = lang === 'bn' ? "দুঃখিত, আমি বুঝতে পারিনি।" : "Sorry, I didn't understand.";
 
-    if (lang === 'bn') {
-        if (lowerInput.includes("পোকা") || lowerInput.includes("রোগ")) botReply = "পোকা দমনের জন্য 'স্ক্যানার' ব্যবহার করুন।";
-        else if (lowerInput.includes("বৃষ্টি") || lowerInput.includes("আবহাওয়া")) botReply = "বৃষ্টির সম্ভাবনা থাকলে ফসল ঢেকে রাখুন।";
-        else if (lowerInput.includes("অবস্থা") || lowerInput.includes("ফসল")) {
-             botReply = crops.length > 0 ? `আপনার ${crops.length}টি ব্যাচ আছে।` : "কোনো ফসল নেই।";
-        }
-    } else {
-        if (lowerInput.includes("pest") || lowerInput.includes("bug")) botReply = "Use Scanner for pests.";
-        else if (lowerInput.includes("rain") || lowerInput.includes("weather")) botReply = "Check Weather tab.";
-        else if (lowerInput.includes("status") || lowerInput.includes("crop")) {
-             botReply = crops.length > 0 ? `You have ${crops.length} batches.` : "No crops.";
-        }
+    if (lower.includes("অবস্থা") || lower.includes("status") || lower.includes("ফসল") || lower.includes("crop")) {
+         if (crops.length > 0) {
+            const last = crops[crops.length - 1];
+            botReply = lang === 'bn' 
+              ? `মোট ${crops.length}টি ব্যাচ। সর্বশেষ: ${last.cropType} (${last.weight} কেজি), ${last.location}।` 
+              : `Total ${crops.length} batches. Last: ${last.cropType} (${last.weight}kg) in ${last.location}.`;
+         } else {
+            botReply = lang === 'bn' ? "কোনো ফসল নেই।" : "No crops found.";
+         }
+    } else if (lower.includes("rain") || lower.includes("weather") || lower.includes("আবহাওয়া")) {
+         botReply = lang === 'bn' ? `তাপমাত্রা: ${weather?.temp}°C, আর্দ্রতা: ${weather?.humidity}%` : `Temp: ${weather?.temp}°C, Humidity: ${weather?.humidity}%`;
+    } else if (lower.includes("পোকা") || lower.includes("pest")) {
+         botReply = lang === 'bn' ? "দয়া করে স্ক্যানার ব্যবহার করুন।" : "Please use the scanner.";
     }
 
     setChatMessages([...newHistory, { sender: 'bot', text: botReply }]);
@@ -414,14 +403,12 @@ export default function Dashboard() {
     const hasBrinjal = crops.some(c => c.cropType.includes("Brinjal") || c.cropType.includes("বেগুন"));
     const hasPaddy = crops.some(c => c.cropType.includes("Paddy") || c.cropType.includes("ধান"));
 
-    // --- ALERT LOGIC FOR DEMO (Force Show) ---
-    // If you have the crop, show the specific alert regardless of current low rain chance
+    // Demo Alerts (Forced)
     if (hasPotato) return lang === 'bn' ? "সতর্কতা: আগামীকাল বৃষ্টি হবে এবং আপনার আলুর গুদামে আর্দ্রতা বেশি। এখনই ফ্যান চালু করুন।" : "Warning: High humidity in Potato storage. Turn on fans immediately.";
     if (hasBrinjal) return lang === 'bn' ? "সতর্কতা: বেগুনের জমিতে পানি জমতে দেবেন না। ছত্রাকনাশক স্প্রে করুন।" : "Warning: Avoid water logging for Brinjal. Spray fungicides.";
     if (hasPaddy) return lang === 'bn' ? "সতর্কতা: ধান শুকাতে সমস্যা হতে পারে। পলিথিন দিয়ে ঢেকে রাখুন।" : "Warning: Cover paddy with polythene to prevent moisture.";
     
     if (w.rainChance > 80) return lang === 'bn' ? t.weatherBad : "Warning: Heavy rain expected!";
-    
     return lang === 'bn' ? t.weatherNormal : "Weather is normal.";
   };
 
@@ -429,7 +416,6 @@ export default function Dashboard() {
     return (
       <div className="min-h-screen relative flex items-center justify-center p-4 font-sans bg-slate-100">
         <div className="absolute inset-0 z-0">
-           {/* FIX: STABLE LOGIN BACKGROUND */}
            <img src="https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=1920" className="w-full h-full object-cover opacity-80" alt="Farm Background" />
            <div className="absolute inset-0 bg-gradient-to-t from-green-900/80 to-transparent" />
         </div>
@@ -494,10 +480,8 @@ export default function Dashboard() {
         {/* --- TAB: MAP --- */}
         {activeTab === 'map' && (
           <motion.div initial={{opacity:0, y:10}} animate={{opacity:1, y:0}} className="bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-100">
-             {/* Map Header + Visual */}
              <div className="p-4 bg-gradient-to-r from-green-50 to-white border-b flex justify-between"><h2 className="font-bold text-green-900 flex gap-2"><MapPin size={18}/> {t.riskMap}</h2></div>
              <div className="relative w-full h-96 bg-blue-50/50 overflow-hidden" style={{ backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)', backgroundSize: '20px 20px' }}>
-                {/* Visual Overlay for Realism */}
                 <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: "url('https://www.transparenttextures.com/patterns/cubes.png')" }}></div>
                 
                 <motion.div className="w-full h-full relative" drag dragConstraints={{ left: -100, right: 100, top: -100, bottom: 100 }} style={{ scale: mapZoom }}>
@@ -541,7 +525,6 @@ export default function Dashboard() {
              <h2 className="text-xl font-bold mb-6 flex items-center gap-2 text-slate-800"><Camera className="text-green-600"/> {t.scanTitle}</h2>
              {!scanImage ? (
                <label className="group flex flex-col items-center justify-center h-64 border-2 border-dashed border-green-200 rounded-2xl bg-green-50/50 cursor-pointer hover:bg-green-50 hover:border-green-400 transition-all relative overflow-hidden">
-                 {/* Visual Tech Pattern */}
                  <div className="absolute inset-0 opacity-10" style={{backgroundImage: 'radial-gradient(#22c55e 1px, transparent 1px)', backgroundSize: '10px 10px'}}></div>
                  <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm mb-3 group-hover:scale-110 transition-transform relative z-10">
                     <Camera size={32} className="text-green-500" />
@@ -597,7 +580,6 @@ export default function Dashboard() {
                 <div className="absolute top-0 right-0 p-8 opacity-20 transform translate-x-4 -translate-y-4">
                     {weather?.rainChance > 50 ? <CloudRain size={120} /> : <CloudSun size={120} />}
                 </div>
-                {/* Visual Overlay */}
                 <div className="absolute inset-0 bg-white/5 opacity-30"></div>
                 
                 <h2 className="text-sm font-bold uppercase tracking-widest opacity-80 mb-6 flex items-center gap-2 relative z-10"><MapPin size={14}/> {weather?.location || "Loading..."}</h2>
