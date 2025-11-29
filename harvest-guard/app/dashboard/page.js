@@ -23,7 +23,7 @@ const DISTRICT_COORDS = {
 
 const STORAGE_TYPES = ["চটের বস্তা (Jute Bag)", "সাইলো (Silo)", "খোলা জায়গা (Open Area)", "প্লাস্টিক ড্রাম (Plastic Drum)", "গোলাঘর (Granary)"];
 
-// --- DATA: CROPS (Bangla First) ---
+// --- DATA: CROPS ---
 const CROP_TYPES = [
   "ধান (Paddy)", 
   "গম (Wheat)", 
@@ -167,6 +167,13 @@ export default function Dashboard() {
     storage: 'চটের বস্তা (Jute Bag)'
   });
 
+  // Ensure voices are loaded for speaking
+  useEffect(() => {
+    const loadVoices = () => { window.speechSynthesis.getVoices(); };
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+  }, []);
+
   useEffect(() => {
     setChatMessages([{ sender: 'bot', text: lang === 'bn' ? 'আমি কৃষি সহকারী। আপনার কি সাহায্য দরকার?' : 'I am Agri Assistant. How can I help?' }]);
   }, [lang]);
@@ -285,7 +292,6 @@ export default function Dashboard() {
   const startListening = () => {
     if ('webkitSpeechRecognition' in window) {
       const recognition = new window.webkitSpeechRecognition();
-      // Ensure we ask for Bangla-BD
       recognition.lang = lang === 'bn' ? 'bn-BD' : 'en-US';
       recognition.start();
       setIsListening(true);
@@ -303,6 +309,34 @@ export default function Dashboard() {
     } else {
       setShowChat(true);
     }
+  };
+
+  // --- FIXED VOICE SPEAKER: FORCES BANGLA VOICE ---
+  const speakText = (text) => {
+    // 1. Create utterance
+    const utterance = new SpeechSynthesisUtterance(text);
+    
+    // 2. Set strict language code
+    utterance.lang = lang === 'bn' ? 'bn-BD' : 'en-US';
+
+    // 3. FORCE BANGLA VOICE SEARCH
+    if (lang === 'bn') {
+        const voices = window.speechSynthesis.getVoices();
+        // Priority Search: 'Google Bangla', then any 'Bangla', then any 'bn'
+        const banglaVoice = voices.find(v => 
+            v.name.includes('Bangla') || 
+            v.name.includes('Bengali') || 
+            v.lang === 'bn-BD' || 
+            v.lang === 'bn-IN'
+        );
+        
+        if (banglaVoice) {
+            utterance.voice = banglaVoice;
+        }
+    }
+
+    // 4. Speak
+    window.speechSynthesis.speak(utterance);
   };
 
   const handleVoiceQuery = (text) => {
@@ -330,20 +364,8 @@ export default function Dashboard() {
     }
 
     if (understood) {
-        const utterance = new SpeechSynthesisUtterance(response);
-        utterance.lang = lang === 'bn' ? 'bn-BD' : 'en-US';
-        
-        // --- VOICE FIX: FORCE BANGLA VOICE OBJECT ---
-        if (lang === 'bn') {
-            const voices = window.speechSynthesis.getVoices();
-            // Try to find a specific Bangla voice (Google Bangla, Bangla India, etc.)
-            const banglaVoice = voices.find(v => v.lang.includes('bn') || v.name.includes('Bangla') || v.name.includes('Bengali'));
-            if (banglaVoice) {
-                utterance.voice = banglaVoice;
-            }
-        }
-        
-        window.speechSynthesis.speak(utterance);
+        // Use the new Fixed Speaker function
+        speakText(response);
     } else {
         setShowChat(true);
     }
@@ -424,195 +446,4 @@ export default function Dashboard() {
     <div className="min-h-screen bg-slate-50 pb-24 font-sans text-slate-900 relative">
       
       {/* Top Bar */}
-      <div className="bg-green-700 text-white p-4 shadow-md sticky top-0 z-20 flex justify-between items-center">
-        <div>
-          <h1 className="text-lg font-bold">{t.appTitle}</h1>
-          <p className="text-xs opacity-80">{t.welcome}, {user.name}</p>
-        </div>
-        <div className="flex gap-3">
-           <button onClick={() => setLang(lang === 'bn' ? 'en' : 'bn')} className="bg-white/20 p-2 rounded-full"><Globe size={18} /></button>
-           <button onClick={handleLogout} className="bg-red-500/80 p-2 rounded-full"><LogOut size={18} /></button>
-        </div>
-      </div>
-
-      <div className="p-4 max-w-2xl mx-auto space-y-6">
-        
-        {/* --- TAB: MAP --- */}
-        {activeTab === 'map' && (
-          <motion.div initial={{opacity:0}} animate={{opacity:1}} className="bg-white rounded-xl shadow-sm overflow-hidden border">
-             <div className="p-4 bg-green-50 border-b flex justify-between"><h2 className="font-bold text-green-900 flex gap-2"><MapPin size={18}/> {t.riskMap}</h2></div>
-             <div className="relative w-full h-96 bg-blue-50 overflow-hidden" style={{ backgroundImage: 'radial-gradient(#ccc 1px, transparent 1px)', backgroundSize: '20px 20px' }}>
-                <motion.div className="w-full h-full relative" drag dragConstraints={{ left: -100, right: 100, top: -100, bottom: 100 }} style={{ scale: mapZoom }}>
-                  <div className="absolute top-1/2 left-1/2 z-20 flex flex-col items-center transform -translate-x-1/2 -translate-y-1/2">
-                     <MapPin size={40} className="text-blue-600 fill-blue-100" /><span className="bg-blue-600 text-white text-[10px] px-1 rounded">ME</span>
-                  </div>
-                  {neighbors.map((n) => (
-                    <div key={n.id} className="absolute flex flex-col items-center z-10" style={{ top: `${n.top}%`, left: `${n.left}%` }} onClick={() => setSelectedPin(n)}>
-                      <div className={`w-4 h-4 rounded-full border-2 border-white shadow-md ${n.risk === 'High' ? 'bg-red-500 animate-pulse' : 'bg-green-500'}`} />
-                    </div>
-                  ))}
-                </motion.div>
-                <div className="absolute bottom-4 right-4 flex flex-col gap-2">
-                  <button onClick={() => setMapZoom(z => Math.min(z + 0.2, 2))} className="w-8 h-8 bg-white rounded shadow font-bold">+</button>
-                  <button onClick={() => setMapZoom(z => Math.max(z - 0.2, 0.5))} className="w-8 h-8 bg-white rounded shadow font-bold">-</button>
-                </div>
-             </div>
-             <AnimatePresence>
-               {selectedPin && (
-                 <motion.div initial={{y:20, opacity:0}} animate={{y:0, opacity:1}} exit={{y:20, opacity:0}} className="p-4 bg-white border-t flex justify-between items-center">
-                    <div>
-                      <h3 className="font-bold text-slate-800">{t.mapPopupCrop}: {selectedPin.crop}</h3>
-                      <p className="text-xs text-gray-500">{t.mapPopupTime}: {selectedPin.updated}</p>
-                    </div>
-                    <div className={`px-3 py-1 rounded-full text-xs font-bold ${selectedPin.risk === 'High' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-                      {t.mapPopupRisk}: {selectedPin.risk}
-                    </div>
-                 </motion.div>
-               )}
-             </AnimatePresence>
-          </motion.div>
-        )}
-
-        {/* --- TAB: SCANNER --- */}
-        {activeTab === 'scanner' && (
-          <motion.div initial={{opacity:0}} animate={{opacity:1}} className="bg-white p-6 rounded-xl shadow-sm">
-             <h2 className="text-xl font-bold mb-4 flex gap-2"><Camera /> {t.scanTitle}</h2>
-             {!scanImage ? (
-               <label className="flex flex-col items-center justify-center h-48 border-2 border-dashed border-green-300 rounded-xl bg-green-50 cursor-pointer">
-                 <Camera size={48} className="text-green-400 mb-2" /><span className="text-sm font-medium text-green-700">{t.scanPlaceholder}</span>
-                 <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-               </label>
-             ) : (
-               <div className="space-y-4">
-                 <img src={scanImage} alt="Crop" className="w-full h-48 object-cover rounded-xl" />
-                 {loading ? <div className="text-center py-4 text-green-600 animate-pulse font-bold">{t.analyzing}</div> : !scanResult ? (
-                   <div className="flex gap-2">
-                     <button onClick={() => setScanImage(null)} className="flex-1 py-3 border rounded-lg font-bold">{t.cancel}</button>
-                     <button onClick={analyzeImage} className="flex-1 py-3 bg-green-600 text-white rounded-lg font-bold flex items-center justify-center gap-2"><Search size={18} /> {t.analyze}</button>
-                   </div>
-                 ) : (
-                   <div className="bg-slate-50 p-4 rounded-xl border">
-                      <h3 className="text-lg font-bold text-red-600 flex items-center gap-2"><AlertTriangle size={20} /> {scanResult[lang].pest}</h3>
-                      <p className="text-sm font-bold mt-1">Risk: {scanResult[lang].risk}</p>
-                      <div className="mt-3 bg-white p-3 rounded border-l-4 border-green-500 text-sm">
-                        <p className="font-bold mb-1">Solution:</p>{scanResult[lang].solution}
-                      </div>
-                      <button onClick={() => setScanImage(null)} className="mt-4 w-full py-2 bg-slate-200 rounded-lg font-bold">{t.newScan}</button>
-                   </div>
-                 )}
-               </div>
-             )}
-          </motion.div>
-        )}
-
-        {/* --- TAB: WEATHER --- */}
-        {activeTab === 'weather' && (
-          <motion.div initial={{opacity:0}} animate={{opacity:1}} className="space-y-4">
-             <div className={`p-6 rounded-2xl shadow-lg relative overflow-hidden text-white ${weather?.rainChance > 80 ? 'bg-red-600' : 'bg-blue-600'}`}>
-                <h2 className="text-xl font-bold mb-1 opacity-90">{t.weatherAlert}</h2>
-                {weather ? (
-                  <div>
-                    <div className="flex items-end gap-2 mt-2"><p className="text-5xl font-black">{weather.temp}°C</p><p className="opacity-80 mb-2">{weather.location}</p></div>
-                    <div className="mt-4 flex gap-4 text-sm bg-white/20 p-3 rounded-lg"><span className="flex gap-1 font-semibold"><Droplets size={16}/> {weather.humidity}% {t.humidity}</span><span className="flex gap-1 font-semibold"><CloudRain size={16}/> {weather.rainChance}% {t.rain}</span></div>
-                  </div>
-                ) : <p>Loading...</p>}
-             </div>
-             {weather && (
-               <div className="bg-orange-50 border border-orange-200 p-5 rounded-xl flex gap-4 items-start">
-                  <AlertTriangle className="text-orange-600 w-6 h-6 mt-1" />
-                  <div><h3 className="font-bold text-orange-900 text-lg">{t.advisory}</h3><p className="text-gray-800 mt-1">{getAdvisory(weather)}</p></div>
-               </div>
-             )}
-          </motion.div>
-        )}
-
-        {/* --- TAB: INVENTORY --- */}
-        {activeTab === 'inventory' && (
-          <motion.div initial={{opacity:0}} animate={{opacity:1}} className="space-y-4">
-            <h2 className="text-xl font-bold text-gray-800">{t.inventory} ({crops.length})</h2>
-            {crops.length === 0 && <p className="text-gray-400 text-center py-10">{t.emptyList}</p>}
-            {crops.map((crop) => (
-               <div key={crop.id} className="bg-white p-4 rounded-xl shadow-sm border-l-4 border-green-500">
-                  <h3 className="font-bold text-lg">{crop.cropType}</h3>
-                  <div className="text-sm text-gray-500 grid grid-cols-2 gap-2 mt-2"><p>⚖️ {crop.weight} kg</p><p>📅 {crop.date}</p><p>📍 {crop.location}</p><p>🏠 {crop.storage}</p></div>
-               </div>
-            ))}
-          </motion.div>
-        )}
-
-        {/* --- TAB: ADD CROP --- */}
-        {activeTab === 'add' && (
-           <div className="bg-white p-6 rounded-xl shadow-sm">
-             <h2 className="text-xl font-bold mb-4">{t.addCropTitle}</h2>
-             <form onSubmit={handleAddCrop} className="space-y-4">
-               <select className="w-full p-3 border rounded bg-gray-50" onChange={(e) => setFormData({...formData, cropType: e.target.value})}>
-                 {CROP_TYPES.map((c, i) => <option key={i} value={c}>{c}</option>)}
-               </select>
-               <input required type="number" placeholder={t.weight} className="w-full p-3 border rounded" onChange={(e) => setFormData({...formData, weight: e.target.value})} />
-               <input required type="date" className="w-full p-3 border rounded" onChange={(e) => setFormData({...formData, date: e.target.value})} />
-               <select className="w-full p-3 border rounded" onChange={(e) => setFormData({...formData, location: e.target.value})}>{Object.keys(DISTRICT_COORDS).map(d => <option key={d} value={d}>{d}</option>)}</select>
-               <select className="w-full p-3 border rounded" onChange={(e) => setFormData({...formData, storage: e.target.value})}>{STORAGE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}</select>
-               <button className="w-full bg-green-600 text-white font-bold py-3 rounded">{t.save}</button>
-             </form>
-           </div>
-        )}
-
-        {/* --- TAB: PROFILE --- */}
-        {activeTab === 'profile' && (
-           <div className="bg-white p-6 rounded-xl shadow-sm text-center">
-              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4"><User size={40} className="text-green-600"/></div>
-              <h2 className="text-xl font-bold">{user.name}</h2>
-              <p className="text-gray-500">{user.phone}</p>
-              <button onClick={handleLogout} className="mt-6 bg-red-100 text-red-600 px-6 py-2 rounded-full font-bold flex items-center gap-2 mx-auto"><LogOut size={16}/> {t.logout}</button>
-           </div>
-        )}
-
-      </div>
-
-      {/* --- Floating Voice Button --- */}
-      <button onClick={startListening} className={`fixed bottom-24 right-4 p-4 rounded-full shadow-xl z-30 transition-all ${isListening ? 'bg-red-500 scale-110' : 'bg-blue-600' } text-white`}>
-        {isListening ? <Volume2 className="animate-pulse" /> : <Mic />}
-      </button>
-
-      {/* --- Chat Box --- */}
-      <AnimatePresence>
-        {showChat && (
-          <motion.div 
-            initial={{y:100}} animate={{y:0}} exit={{y:100}} 
-            className="fixed bottom-0 left-0 w-full bg-white rounded-t-2xl shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-[60] p-4 border-t border-green-200"
-          >
-             <div className="flex justify-between items-center mb-2 border-b pb-2">
-                <h3 className="font-bold text-green-800 flex items-center gap-2"><MessageSquare size={18}/> {t.chatTitle}</h3>
-                <button onClick={() => setShowChat(false)}><X size={20} className="text-gray-500"/></button>
-             </div>
-             <div className="h-40 overflow-y-auto mb-3 space-y-2 bg-gray-50 p-2 rounded">
-               {chatMessages.map((msg, i) => (
-                 <div key={i} className={`p-2 rounded-lg text-sm max-w-[80%] ${msg.sender === 'user' ? 'bg-blue-100 ml-auto' : 'bg-green-100'}`}>{msg.text}</div>
-               ))}
-             </div>
-             <div className="flex gap-2">
-               <input 
-                 type="text" 
-                 value={chatInput} 
-                 onChange={(e) => setChatInput(e.target.value)} 
-                 placeholder={t.chatPlaceholder} 
-                 className="flex-1 border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none" 
-               />
-               <button onClick={sendChatMessage} className="bg-green-600 text-white px-4 rounded-lg"><Send size={20} /></button>
-             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* --- Bottom Nav --- */}
-      <div className="fixed bottom-0 w-full bg-white border-t flex justify-around py-2 pb-5 text-gray-500 text-xs font-medium z-50">
-        <button onClick={() => setActiveTab('map')} className={`flex flex-col items-center p-2 ${activeTab === 'map' ? 'text-green-600' : ''}`}><MapPin size={24} /> {t.map}</button>
-        <button onClick={() => setActiveTab('weather')} className={`flex flex-col items-center p-2 ${activeTab === 'weather' ? 'text-green-600' : ''}`}><CloudSun size={24} /> {t.weather}</button>
-        <button onClick={() => setActiveTab('add')} className="relative"><div className="bg-green-600 text-white p-3 rounded-full -mt-6 shadow-lg border-4 border-slate-50"><Sprout size={24} /></div></button>
-        <button onClick={() => setActiveTab('scanner')} className={`flex flex-col items-center p-2 ${activeTab === 'scanner' ? 'text-green-600' : ''}`}><Camera size={24} /> {t.scanner}</button>
-        <button onClick={() => setActiveTab('inventory')} className={`flex flex-col items-center p-2 ${activeTab === 'inventory' ? 'text-green-600' : ''}`}><Leaf size={24} /> {t.inventory}</button>
-        <button onClick={() => setActiveTab('profile')} className={`flex flex-col items-center p-2 ${activeTab === 'profile' ? 'text-green-600' : ''}`}><User size={24} /> {t.profile}</button>
-      </div>
-    </div>
-  );
-}
+      <div className="bg-green-700 text-white p-
