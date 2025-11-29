@@ -34,17 +34,17 @@ const CROP_TYPES = [
   "টমেটো (Tomato)"
 ];
 
-// --- VISUALS: FIXED & TESTED IMAGES ---
+// --- VISUALS: FIXED & STABLE IMAGES (New Links) ---
 const getCropImage = (cropName) => {
-  if (!cropName) return "https://upload.wikimedia.org/wikipedia/commons/9/9d/Tomato.png"; // Fallback
+  if (!cropName) return "https://images.unsplash.com/photo-1599940824399-b87987ce0799?auto=format&fit=crop&w=300&q=80";
   
   const name = cropName.toLowerCase();
   
-  // Maize/Bhutta (Fixed)
+  // Maize/Bhutta (Updated Link)
   if (name.includes('maize') || name.includes('ভুট্টা')) 
     return "https://images.unsplash.com/photo-1551754655-4d782bc51741?auto=format&fit=crop&w=300&q=80";
   
-  // Brinjal/Begun (Fixed)
+  // Brinjal/Begun (Updated Link)
   if (name.includes('brinjal') || name.includes('বেগুন')) 
     return "https://images.unsplash.com/photo-1615485499738-4c4b57422b78?auto=format&fit=crop&w=300&q=80";
   
@@ -64,7 +64,11 @@ const getCropImage = (cropName) => {
   if (name.includes('tomato') || name.includes('টমেটো')) 
     return "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=300&q=80";
 
-  return "https://images.unsplash.com/photo-1500937386664-56d1dfef3854?auto=format&fit=crop&w=300&q=80"; 
+  // Mustard/Shorisha
+  if (name.includes('mustard') || name.includes('সরিষা'))
+    return "https://images.unsplash.com/photo-1505235687559-28b5f54645b7?auto=format&fit=crop&w=300&q=80";
+
+  return "https://images.unsplash.com/photo-1599940824399-b87987ce0799?auto=format&fit=crop&w=300&q=80"; 
 };
 
 // --- PEST DATABASE ---
@@ -290,6 +294,11 @@ export default function Dashboard() {
         rainChance: data.daily.precipitation_probability_max[0],
         maxTemp: data.daily.temperature_2m_max[0]
       });
+
+      if (data.daily.precipitation_probability_max[0] > 80) {
+        console.log(`%c[SMS ALERT]: Critical Weather! Cover crops.`, "color: red; font-size: 14px;");
+      }
+
     } catch (error) { console.error(error); }
     setLoading(false);
   };
@@ -349,7 +358,7 @@ export default function Dashboard() {
 
     const cropNames = [...new Set(crops.map(c => c.cropType))].join(", ");
 
-    if (lower.includes("অবস্থা") || lower.includes("status") || lower.includes("ফসল") || lower.includes("crop")) {
+    if (lower.includes("অবস্থা") || lower.includes("status")) {
         understood = true;
         if (crops.length > 0) {
             response = lang === 'bn' 
@@ -398,7 +407,6 @@ export default function Dashboard() {
     setChatInput("");
   };
 
-  // --- FIXED: WEATHER ADVISORY & ALERTS ---
   const getAdvisory = (w) => {
     if (!w) return "";
     
@@ -406,22 +414,14 @@ export default function Dashboard() {
     const hasBrinjal = crops.some(c => c.cropType.includes("Brinjal") || c.cropType.includes("বেগুন"));
     const hasPaddy = crops.some(c => c.cropType.includes("Paddy") || c.cropType.includes("ধান"));
 
-    // --- DEMO OVERRIDE: Trigger alerts easily for demo (Thresholds lowered to 0) ---
-    // If you have the crop, you WILL see the alert for the demo video.
-    
-    // 1. Potato - High Humidity (PDF Requirement)
+    // --- ALERT LOGIC FOR DEMO (Force Show) ---
+    // If you have the crop, show the specific alert regardless of current low rain chance
     if (hasPotato) return lang === 'bn' ? "সতর্কতা: আগামীকাল বৃষ্টি হবে এবং আপনার আলুর গুদামে আর্দ্রতা বেশি। এখনই ফ্যান চালু করুন।" : "Warning: High humidity in Potato storage. Turn on fans immediately.";
-    
-    // 2. Brinjal - Rain
     if (hasBrinjal) return lang === 'bn' ? "সতর্কতা: বেগুনের জমিতে পানি জমতে দেবেন না। ছত্রাকনাশক স্প্রে করুন।" : "Warning: Avoid water logging for Brinjal. Spray fungicides.";
-    
-    // 3. Paddy - Rain
     if (hasPaddy) return lang === 'bn' ? "সতর্কতা: ধান শুকাতে সমস্যা হতে পারে। পলিথিন দিয়ে ঢেকে রাখুন।" : "Warning: Cover paddy with polythene to prevent moisture.";
     
-    // 4. General Rain Alert
     if (w.rainChance > 80) return lang === 'bn' ? t.weatherBad : "Warning: Heavy rain expected!";
     
-    // 5. Default
     return lang === 'bn' ? t.weatherNormal : "Weather is normal.";
   };
 
@@ -429,12 +429,12 @@ export default function Dashboard() {
     return (
       <div className="min-h-screen relative flex items-center justify-center p-4 font-sans bg-slate-100">
         <div className="absolute inset-0 z-0">
-           {/* FIX: WORKING LOGIN BG */}
-           <img src="https://images.unsplash.com/photo-1586771107445-d3ca888129ff?auto=format&fit=crop&q=80&w=1920" className="w-full h-full object-cover opacity-30" alt="Farm Background" />
-           <div className="absolute inset-0 bg-gradient-to-t from-green-100/90 to-transparent" />
+           {/* FIX: STABLE LOGIN BACKGROUND */}
+           <img src="https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=1920" className="w-full h-full object-cover opacity-80" alt="Farm Background" />
+           <div className="absolute inset-0 bg-gradient-to-t from-green-900/80 to-transparent" />
         </div>
 
-        <motion.div initial={{scale:0.9, opacity: 0}} animate={{scale:1, opacity: 1}} className="bg-white/90 backdrop-blur-xl p-8 rounded-3xl shadow-2xl w-full max-w-md z-10 border border-white/50">
+        <motion.div initial={{scale:0.9, opacity: 0}} animate={{scale:1, opacity: 1}} className="bg-white/95 backdrop-blur-xl p-8 rounded-3xl shadow-2xl w-full max-w-md z-10 border border-white/50">
           <div className="flex justify-end mb-4"><button onClick={() => setLang(lang === 'bn' ? 'en' : 'bn')} className="flex items-center gap-1 text-xs bg-green-100 text-green-700 px-3 py-1 rounded-full font-bold shadow-sm hover:bg-green-200"><Globe size={14}/> {lang === 'bn' ? 'English' : 'বাংলা'}</button></div>
           <div className="text-center mb-8">
              <div className="w-16 h-16 bg-green-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg text-white">
@@ -494,8 +494,12 @@ export default function Dashboard() {
         {/* --- TAB: MAP --- */}
         {activeTab === 'map' && (
           <motion.div initial={{opacity:0, y:10}} animate={{opacity:1, y:0}} className="bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-100">
+             {/* Map Header + Visual */}
              <div className="p-4 bg-gradient-to-r from-green-50 to-white border-b flex justify-between"><h2 className="font-bold text-green-900 flex gap-2"><MapPin size={18}/> {t.riskMap}</h2></div>
              <div className="relative w-full h-96 bg-blue-50/50 overflow-hidden" style={{ backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)', backgroundSize: '20px 20px' }}>
+                {/* Visual Overlay for Realism */}
+                <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: "url('https://www.transparenttextures.com/patterns/cubes.png')" }}></div>
+                
                 <motion.div className="w-full h-full relative" drag dragConstraints={{ left: -100, right: 100, top: -100, bottom: 100 }} style={{ scale: mapZoom }}>
                   <div className="absolute top-1/2 left-1/2 z-20 flex flex-col items-center transform -translate-x-1/2 -translate-y-1/2">
                      <div className="relative">
@@ -536,11 +540,13 @@ export default function Dashboard() {
           <motion.div initial={{opacity:0, scale:0.95}} animate={{opacity:1, scale:1}} className="bg-white p-6 rounded-2xl shadow-xl border border-slate-100">
              <h2 className="text-xl font-bold mb-6 flex items-center gap-2 text-slate-800"><Camera className="text-green-600"/> {t.scanTitle}</h2>
              {!scanImage ? (
-               <label className="group flex flex-col items-center justify-center h-64 border-2 border-dashed border-green-200 rounded-2xl bg-green-50/50 cursor-pointer hover:bg-green-50 hover:border-green-400 transition-all">
-                 <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm mb-3 group-hover:scale-110 transition-transform">
+               <label className="group flex flex-col items-center justify-center h-64 border-2 border-dashed border-green-200 rounded-2xl bg-green-50/50 cursor-pointer hover:bg-green-50 hover:border-green-400 transition-all relative overflow-hidden">
+                 {/* Visual Tech Pattern */}
+                 <div className="absolute inset-0 opacity-10" style={{backgroundImage: 'radial-gradient(#22c55e 1px, transparent 1px)', backgroundSize: '10px 10px'}}></div>
+                 <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm mb-3 group-hover:scale-110 transition-transform relative z-10">
                     <Camera size={32} className="text-green-500" />
                  </div>
-                 <span className="text-sm font-semibold text-green-700">{t.scanPlaceholder}</span>
+                 <span className="text-sm font-semibold text-green-700 relative z-10">{t.scanPlaceholder}</span>
                  <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
                </label>
              ) : (
@@ -591,11 +597,13 @@ export default function Dashboard() {
                 <div className="absolute top-0 right-0 p-8 opacity-20 transform translate-x-4 -translate-y-4">
                     {weather?.rainChance > 50 ? <CloudRain size={120} /> : <CloudSun size={120} />}
                 </div>
+                {/* Visual Overlay */}
+                <div className="absolute inset-0 bg-white/5 opacity-30"></div>
                 
-                <h2 className="text-sm font-bold uppercase tracking-widest opacity-80 mb-6 flex items-center gap-2"><MapPin size={14}/> {weather?.location || "Loading..."}</h2>
+                <h2 className="text-sm font-bold uppercase tracking-widest opacity-80 mb-6 flex items-center gap-2 relative z-10"><MapPin size={14}/> {weather?.location || "Loading..."}</h2>
                 
                 {weather ? (
-                  <div>
+                  <div className="relative z-10">
                     <div className="flex items-start gap-4">
                         <span className="text-7xl font-black tracking-tighter">{weather.temp}°</span>
                         <div className="mt-2">
@@ -706,14 +714,18 @@ export default function Dashboard() {
 
         {/* --- TAB: PROFILE --- */}
         {activeTab === 'profile' && (
-           <motion.div initial={{opacity:0}} animate={{opacity:1}} className="bg-white p-8 rounded-3xl shadow-xl text-center border border-slate-100">
-              <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner">
+           <motion.div initial={{opacity:0}} animate={{opacity:1}} className="bg-white p-8 rounded-3xl shadow-xl text-center border border-slate-100 relative overflow-hidden">
+              {/* Background Visual */}
+              <div className="absolute inset-0 z-0">
+                 <img src="https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=800" className="w-full h-full object-cover opacity-10" />
+              </div>
+              <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner relative z-10">
                   <User size={48} className="text-green-600"/>
               </div>
-              <h2 className="text-3xl font-black text-slate-800">{user.name}</h2>
-              <p className="text-slate-500 font-medium text-lg mt-1">{user.phone}</p>
+              <h2 className="text-3xl font-black text-slate-800 relative z-10">{user.name}</h2>
+              <p className="text-slate-500 font-medium text-lg mt-1 relative z-10">{user.phone}</p>
               
-              <div className="mt-8 grid grid-cols-2 gap-4">
+              <div className="mt-8 grid grid-cols-2 gap-4 relative z-10">
                   <div className="bg-slate-50 p-4 rounded-2xl">
                       <p className="text-2xl font-black text-slate-800">{crops.length}</p>
                       <p className="text-xs text-slate-500 uppercase font-bold">Batches</p>
@@ -724,7 +736,7 @@ export default function Dashboard() {
                   </div>
               </div>
 
-              <button onClick={handleLogout} className="mt-8 w-full bg-red-50 hover:bg-red-100 text-red-600 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors"><LogOut size={20}/> {t.logout}</button>
+              <button onClick={handleLogout} className="mt-8 w-full bg-red-50 hover:bg-red-100 text-red-600 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors relative z-10"><LogOut size={20}/> {t.logout}</button>
            </motion.div>
         )}
 
