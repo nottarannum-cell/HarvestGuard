@@ -23,6 +23,7 @@ const DISTRICT_COORDS = {
 
 const STORAGE_TYPES = ["চটের বস্তা (Jute Bag)", "সাইলো (Silo)", "খোলা জায়গা (Open Area)", "প্লাস্টিক ড্রাম (Plastic Drum)", "গোলাঘর (Granary)"];
 
+// --- DATA: CROPS (Bangla First) ---
 const CROP_TYPES = [
   "ধান (Paddy)", 
   "গম (Wheat)", 
@@ -33,6 +34,7 @@ const CROP_TYPES = [
   "টমেটো (Tomato)"
 ];
 
+// --- PEST DATABASE ---
 const PEST_DATABASE = [
   { 
     id: 1,
@@ -51,6 +53,7 @@ const PEST_DATABASE = [
   }
 ];
 
+// --- TRANSLATIONS ---
 const TRANSLATIONS = {
   bn: {
     appTitle: "হার্ভেস্টগার্ড",
@@ -74,7 +77,7 @@ const TRANSLATIONS = {
     save: "সংরক্ষণ করুন",
     chatTitle: "কৃষি সহকারী (Chat)",
     chatPlaceholder: "আপনার প্রশ্ন লিখুন...",
-    advisory: "কৃষি পরামর্শ (Smart Alert)",
+    advisory: "পরামর্শ (Smart Alert)",
     humidity: "আর্দ্রতা",
     rain: "বৃষ্টি",
     newScan: "নতুন ছবি",
@@ -107,7 +110,7 @@ const TRANSLATIONS = {
     save: "Save",
     chatTitle: "Agri Assistant (Chat)",
     chatPlaceholder: "Type your question here...",
-    advisory: "Smart Advisory",
+    advisory: "Advisory (Smart Alert)",
     humidity: "Humidity",
     rain: "Rain",
     newScan: "New Scan",
@@ -134,19 +137,22 @@ const generateNeighbors = () => {
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('inventory');
   const [loading, setLoading] = useState(false);
-  const [lang, setLang] = useState('bn');
+  const [lang, setLang] = useState('bn'); // INITIAL BANGLA
   const t = TRANSLATIONS[lang];
   
+  // --- Data States ---
   const [user, setUser] = useState({ name: '', phone: '', registered: false });
   const [crops, setCrops] = useState([]);
   const [weather, setWeather] = useState(null);
   
+  // --- Feature States ---
   const [neighbors] = useState(generateNeighbors());
   const [selectedPin, setSelectedPin] = useState(null);
   const [mapZoom, setMapZoom] = useState(1);
   const [scanImage, setScanImage] = useState(null);
   const [scanResult, setScanResult] = useState(null);
 
+  // --- Voice & Chat States ---
   const [isListening, setIsListening] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
@@ -228,7 +234,6 @@ export default function Dashboard() {
       });
 
       // --- B2: SMS SIMULATION FOR CRITICAL RISK ---
-      // PDF Requirement: Simulate SMS when risk hits "Critical"
       if (data.daily.precipitation_probability_max[0] > 80) {
         console.log(`%c[SMS ALERT SENT TO ${user.phone}]: Critical Weather Alert! Rain expected. Cover crops immediately.`, "color: red; font-size: 14px; font-weight: bold;");
       }
@@ -276,13 +281,11 @@ export default function Dashboard() {
     }
   };
 
-  // --- B4: IMPROVED VOICE HANDLER ---
   const handleVoiceQuery = (text) => {
     const lower = text.toLowerCase();
     let response = "";
     let understood = false;
 
-    // Logic: Check crops
     const hasCrops = crops.length > 0;
     const lastCrop = hasCrops ? crops[crops.length - 1] : null;
 
@@ -290,87 +293,69 @@ export default function Dashboard() {
         understood = true;
         if (hasCrops) {
             response = lang === 'bn' 
-              ? `আপনার ${crops.length}টি ফসলের ব্যাচ সংরক্ষিত আছে। সর্বশেষ ${lastCrop.cropType} যোগ করা হয়েছে।` 
-              : `You have ${crops.length} batches stored. Last one is ${lastCrop.cropType}.`;
+              ? `আপনার ${crops.length}টি ব্যাচ আছে। সর্বশেষ ${lastCrop.cropType}।` 
+              : `You have ${crops.length} batches. Last one is ${lastCrop.cropType}.`;
         } else {
-            response = lang === 'bn' ? "আপনার কোনো ফসল সংরক্ষিত নেই।" : "You have no crops stored.";
+            response = lang === 'bn' ? "আপনার কোনো ফসল নেই।" : "No crops found.";
         }
     } 
-    else if (lower.includes("আবহাওয়া") || lower.includes("weather") || lower.includes("rain")) {
-        understood = true;
-        const temp = weather?.temp || 30;
-        response = lang === 'bn' 
-          ? `আজকের তাপমাত্রা ${temp} ডিগ্রি সেলসিয়াস।` 
-          : `Temperature is ${temp} degrees.`;
-    }
-    else if (lower.includes("পরামর্শ") || lower.includes("advice")) {
+    else if (lower.includes("আবহাওয়া") || lower.includes("weather")) {
         understood = true;
         response = lang === 'bn' 
-          ? "আর্দ্রতা বেশি থাকলে ফ্যান চালান। বৃষ্টির সম্ভাবনা থাকলে ফসল ঢেকে রাখুন।" 
-          : "Turn on fans if humidity is high. Cover crops if rain is likely.";
+          ? `তাপমাত্রা ${weather?.temp || 30} ডিগ্রি সেলসিয়াস।` 
+          : `Temperature is ${weather?.temp || 30} degrees.`;
     }
 
     if (understood) {
-        // Speak back directly
         const utterance = new SpeechSynthesisUtterance(response);
         utterance.lang = lang === 'bn' ? 'bn-BD' : 'en-US';
         window.speechSynthesis.speak(utterance);
     } else {
-        // Fallback to chat if not understood
         setShowChat(true);
     }
   };
 
-  // --- SMART CHAT HANDLER (Same Logic as Voice) ---
   const sendChatMessage = () => {
     if (!chatInput.trim()) return;
     const newHistory = [...chatMessages, { sender: 'user', text: chatInput }];
-    const lower = chatInput.toLowerCase();
+    const lowerInput = chatInput.toLowerCase();
     
-    let botReply = lang === 'bn' ? "দুঃখিত, আমি বুঝতে পারিনি। আবার বলুন।" : "Sorry, I didn't understand.";
+    let botReply = lang === 'bn' ? "দুঃখিত, আমি বুঝতে পারিনি।" : "Sorry, I didn't understand.";
 
-    const hasCrops = crops.length > 0;
-    const lastCrop = hasCrops ? crops[crops.length - 1] : null;
-
-    // Chatbot Logic
-    if (lower.includes("অবস্থা") || lower.includes("status") || lower.includes("ফসল")) {
-        botReply = lang === 'bn' 
-           ? (hasCrops ? `আপনার ${crops.length}টি ব্যাচ আছে। সর্বশেষ: ${lastCrop.cropType}।` : "কোনো ফসল নেই।")
-           : (hasCrops ? `You have ${crops.length} batches.` : "No crops found.");
-    } 
-    else if (lower.includes("পোকা") || lower.includes("রোগ") || lower.includes("pest")) {
-        botReply = lang === 'bn' ? "পোকা দমনের জন্য 'স্ক্যানার' ব্যবহার করুন।" : "Please use the Scanner.";
-    }
-    else if (lower.includes("বৃষ্টি") || lower.includes("আবহাওয়া") || lower.includes("weather")) {
-        botReply = lang === 'bn' ? `বর্তমানে তাপমাত্রা ${weather?.temp || 30}°C।` : `Temp is ${weather?.temp || 30}°C.`;
+    if (lang === 'bn') {
+        if (lowerInput.includes("পোকা") || lowerInput.includes("রোগ")) botReply = "পোকা দমনের জন্য 'স্ক্যানার' ব্যবহার করুন।";
+        else if (lowerInput.includes("বৃষ্টি") || lowerInput.includes("আবহাওয়া")) botReply = "বৃষ্টির সম্ভাবনা থাকলে ফসল ঢেকে রাখুন।";
+        else if (lowerInput.includes("অবস্থা") || lowerInput.includes("ফসল")) botReply = crops.length > 0 ? `আপনার ${crops.length}টি ফসলের ব্যাচ আছে।` : "আপনার কোনো ফসল নেই।";
     }
 
     setChatMessages([...newHistory, { sender: 'bot', text: botReply }]);
     setChatInput("");
   };
 
-  // --- B2: SMART ALERT LOGIC (Actionable Advice) ---
+  // --- B2: SMART ALERT LOGIC (Strict PDF Requirement) ---
   const getAdvisory = (w) => {
     if (!w) return "";
     
     // Check if user has Potato (Part B2 Requirement)
     const hasPotato = crops.some(c => c.cropType.includes("Potato") || c.cropType.includes("আলু"));
 
-    // B2: "Good Alert" Example from PDF
-    if (hasPotato && w.humidity > 80) {
+    // B2: "Good Alert" (Explicit from PDF)
+    // "Tomorrow it will rain and humidity is high in potato storage. Turn on fans now."
+    if (hasPotato && (w.humidity > 60 || w.rainChance > 40)) {
         return lang === 'bn' 
-          ? "সতর্কতা: আগামীকাল বৃষ্টি হবে এবং আপনার আলুর গুদামে আর্দ্রতা বেশি। এখনই ফ্যান চালু করুন।" 
-          : "Warning: High humidity in Potato storage. Turn on fans immediately.";
+          ? "আগামীকাল বৃষ্টি হবে এবং আপনার আলুর গুদামে আর্দ্রতা বেশি। এখনই ফ্যান চালু করুন।" 
+          : "Tomorrow it will rain and humidity is high in potato storage. Turn on fans now.";
     }
 
-    // B2: "Bad Alert" Example from PDF
-    if (w.rainChance > 80) {
+    // B2: "Bad Alert" (Explicit from User Prompt)
+    // "Weather is bad"
+    if (w.rainChance > 70) {
         return lang === 'bn' 
-          ? "আগামীকাল বৃষ্টি হবে। খোলা বা চটের বস্তায় রাখা ফসল পলিথিন দিয়ে ঢেকে দিন।" 
-          : "Rain expected tomorrow. Cover open/jute bag crops with polythene.";
+          ? "আবহাওয়া খারাপ (Weather is bad)।" 
+          : "Weather is bad.";
     }
     
-    return lang === 'bn' ? "আবহাওয়া স্বাভাবিক আছে। নিয়মিত পর্যবেক্ষণ করুন।" : "Weather is normal. Monitor regularly.";
+    return lang === 'bn' ? "আবহাওয়া স্বাভাবিক আছে।" : "Weather is normal.";
   };
 
   if (!user.registered) {
@@ -406,7 +391,7 @@ export default function Dashboard() {
 
       <div className="p-4 max-w-2xl mx-auto space-y-6">
         
-        {/* --- TAB: MAP (Popups Restored) --- */}
+        {/* --- TAB: MAP --- */}
         {activeTab === 'map' && (
           <motion.div initial={{opacity:0}} animate={{opacity:1}} className="bg-white rounded-xl shadow-sm overflow-hidden border">
              <div className="p-4 bg-green-50 border-b flex justify-between"><h2 className="font-bold text-green-900 flex gap-2"><MapPin size={18}/> {t.riskMap}</h2></div>
@@ -543,7 +528,7 @@ export default function Dashboard() {
         {isListening ? <Volume2 className="animate-pulse" /> : <Mic />}
       </button>
 
-      {/* --- Chat Box (Intelligent) --- */}
+      {/* --- Chat Box --- */}
       <AnimatePresence>
         {showChat && (
           <motion.div 
