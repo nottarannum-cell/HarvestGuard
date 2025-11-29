@@ -21,44 +21,39 @@ const DISTRICT_COORDS = {
   "Mymensingh": { lat: 24.7471, lng: 90.4203 }
 };
 
-const STORAGE_TYPES = ["Jute Bag Stack", "Silo", "Open Area", "Plastic Drum", "Traditional Granary"];
+const STORAGE_TYPES = ["চটের বস্তা (Jute Bag)", "সাইলো (Silo)", "খোলা জায়গা (Open Area)", "প্লাস্টিক ড্রাম (Plastic Drum)", "গোলাঘর (Granary)"];
 
-// --- DATA: BILINGUAL SUPPORT ---
+// --- DATA: CROPS (Bangla First) ---
 const CROP_TYPES = [
-  { bn: "ধান (Paddy)", en: "Paddy/Rice" },
-  { bn: "গম (Wheat)", en: "Wheat" },
-  { bn: "আলু (Potato)", en: "Potato" },
-  { bn: "ভুট্টা (Maize)", en: "Maize" },
-  { bn: "সরিষা (Mustard)", en: "Mustard" },
-  { bn: "বেগুন (Brinjal)", en: "Brinjal" },
-  { bn: "টমেটো (Tomato)", en: "Tomato" }
+  "ধান (Paddy)", 
+  "গম (Wheat)", 
+  "আলু (Potato)", 
+  "ভুট্টা (Maize)", 
+  "সরিষা (Mustard)",
+  "বেগুন (Brinjal)",
+  "টমেটো (Tomato)"
 ];
 
-// Detailed Pest Database with Translations
+// --- PEST DATABASE (Dynamic Scanner) ---
 const PEST_DATABASE = [
   { 
     id: 1,
-    bn: { pest: "মাজরা পোকা", risk: "উচ্চ (High)", solution: "আক্রান্ত ডালপালা ছাঁটাই করুন এবং জমিতে আলোক ফাঁদ ব্যবহার করুন। প্রয়োজনে দানাদার কীটনাশক ব্যবহার করুন।" },
-    en: { pest: "Stem Borer", risk: "High", solution: "Trim affected stems and use light traps. Apply granular pesticides if necessary." }
+    bn: { pest: "মাজরা পোকা", risk: "উচ্চ (High)", solution: "আক্রান্ত ডালপালা ছাঁটাই করুন এবং জমিতে আলোক ফাঁদ ব্যবহার করুন। দানাদার কীটনাশক (যেমন: কার্বফুরান) প্রয়োগ করুন।" },
+    en: { pest: "Stem Borer", risk: "High", solution: "Trim affected stems and use light traps. Apply granular pesticides like Carbofuran." }
   },
   { 
     id: 2,
-    bn: { pest: "লেট ব্লাইট (Late Blight)", risk: "মারাত্মক (Critical)", solution: "অবিলম্বে ম্যানকোজেব জাতীয় ছত্রাকনাশক স্প্রে করুন। জমিতে সেচ দেওয়া বন্ধ রাখুন।" },
-    en: { pest: "Late Blight", risk: "Critical", solution: "Spray Mancozeb fungicide immediately. Stop irrigation." }
+    bn: { pest: "লেট ব্লাইট (Late Blight)", risk: "মারাত্মক (Critical)", solution: "লক্ষণ দেখা মাত্র ম্যানকোজেব জাতীয় ছত্রাকনাশক স্প্রে করুন। জমিতে সেচ দেওয়া বন্ধ রাখুন এবং আক্রান্ত গাছ পুড়িয়ে ফেলুন।" },
+    en: { pest: "Late Blight", risk: "Critical", solution: "Spray Mancozeb fungicide immediately. Stop irrigation and burn affected plants." }
   },
   { 
     id: 3,
-    bn: { pest: "জাব পোকা (Aphids)", risk: "মাঝারি (Medium)", solution: "নিম তেল অথবা সাবান পানি স্প্রে করুন। লেডি বার্ড বিটল পোকা সংরক্ষণ করুন।" },
+    bn: { pest: "জাব পোকা (Aphids)", risk: "মাঝারি (Medium)", solution: "নিম তেল অথবা সাবান পানি (১০ লিটার পানিতে ২ চামচ) স্প্রে করুন। লেডি বার্ড বিটল পোকা সংরক্ষণ করুন।" },
     en: { pest: "Aphids", risk: "Medium", solution: "Spray Neem oil or soapy water. Conserve Lady Bird Beetles." }
-  },
-  { 
-    id: 4,
-    bn: { pest: "ধানের ব্লাস্ট", risk: "উচ্চ (High)", solution: "ট্রাইসাইক্লাজোল জাতীয় ছত্রাকনাশক স্প্রে করুন। জমিতে সব সময় পানি ধরে রাখুন।" },
-    en: { pest: "Rice Blast", risk: "High", solution: "Spray Tricyclazole fungicide. Maintain standing water in the field." }
   }
 ];
 
-// UI Translations
+// --- TRANSLATIONS ---
 const TRANSLATIONS = {
   bn: {
     appTitle: "হার্ভেস্টগার্ড",
@@ -81,7 +76,7 @@ const TRANSLATIONS = {
     addCropTitle: "নতুন ফসল যোগ করুন",
     save: "সংরক্ষণ করুন",
     chatTitle: "কৃষি সহকারী (Chat)",
-    chatPlaceholder: "এখানে আপনার প্রশ্ন লিখুন...",
+    chatPlaceholder: "আপনার প্রশ্ন লিখুন...",
     advisory: "পরামর্শ",
     humidity: "আর্দ্রতা",
     rain: "বৃষ্টি",
@@ -91,7 +86,10 @@ const TRANSLATIONS = {
     emptyList: "কোন তথ্য পাওয়া যায়নি। নতুন ফসল যোগ করুন।",
     advisoryBad: "সতর্কতা: আগামীকাল বৃষ্টি ৮৫% → আজই ফসল ঢেকে রাখুন!",
     advisoryGood: "আর্দ্রতা খুব বেশি! গুদামে ফ্যান চালু করুন।",
-    advisoryNormal: "আবহাওয়া স্বাভাবিক আছে।"
+    advisoryNormal: "আবহাওয়া স্বাভাবিক আছে।",
+    mapPopupRisk: "ঝুঁকি",
+    mapPopupCrop: "ফসল",
+    mapPopupTime: "আপডেট"
   },
   en: {
     appTitle: "HarvestGuard",
@@ -124,7 +122,10 @@ const TRANSLATIONS = {
     emptyList: "No data found. Add new crop.",
     advisoryBad: "Warning: Rain expected (85%). Cover crops immediately!",
     advisoryGood: "High Humidity! Turn on warehouse fans.",
-    advisoryNormal: "Weather is normal."
+    advisoryNormal: "Weather is normal.",
+    mapPopupRisk: "Risk",
+    mapPopupCrop: "Crop",
+    mapPopupTime: "Updated"
   }
 };
 
@@ -134,31 +135,30 @@ const generateNeighbors = () => {
     top: 20 + Math.random() * 60,
     left: 10 + Math.random() * 80,
     risk: Math.random() > 0.6 ? 'High' : 'Low',
-    cropBn: Math.random() > 0.5 ? 'ধান' : 'গম',
-    cropEn: Math.random() > 0.5 ? 'Paddy' : 'Wheat',
-    updated: `${Math.floor(Math.random() * 5) + 1}h ago`
+    crop: Math.random() > 0.5 ? 'ধান (Paddy)' : 'গম (Wheat)',
+    updated: `${Math.floor(Math.random() * 5) + 1} ঘণ্টা আগে`
   }));
 };
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('inventory');
   const [loading, setLoading] = useState(false);
-  const [lang, setLang] = useState('bn'); // DEFAULT BANGLA
+  const [lang, setLang] = useState('bn'); // INITIAL BANGLA
   const t = TRANSLATIONS[lang];
   
-  // --- State for Data ---
+  // --- Data States ---
   const [user, setUser] = useState({ name: '', phone: '', registered: false });
   const [crops, setCrops] = useState([]);
   const [weather, setWeather] = useState(null);
   
   // --- Feature States ---
   const [neighbors] = useState(generateNeighbors());
-  const [selectedPin, setSelectedPin] = useState(null);
+  const [selectedPin, setSelectedPin] = useState(null); // Map Popup State
   const [mapZoom, setMapZoom] = useState(1);
   const [scanImage, setScanImage] = useState(null);
-  const [scanResult, setScanResult] = useState(null); // Stores the full bilingual object
+  const [scanResult, setScanResult] = useState(null);
 
-  // --- Voice & Chat Fallback States ---
+  // --- Voice & Chat States ---
   const [isListening, setIsListening] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
@@ -169,12 +169,11 @@ export default function Dashboard() {
     weight: '',
     date: '',
     location: 'Dhaka',
-    storage: 'Jute Bag Stack'
+    storage: 'চটের বস্তা (Jute Bag)'
   });
 
-  // Init Chat Message based on Lang
   useEffect(() => {
-    setChatMessages([{ sender: 'bot', text: lang === 'bn' ? 'আমি কীভাবে সাহায্য করতে পারি?' : 'How can I help you?' }]);
+    setChatMessages([{ sender: 'bot', text: lang === 'bn' ? 'আমি কৃষি সহকারী। আপনার কি সাহায্য দরকার?' : 'I am Agri Assistant. How can I help?' }]);
   }, [lang]);
 
   useEffect(() => {
@@ -184,7 +183,6 @@ export default function Dashboard() {
     if (storedCrops) setCrops(JSON.parse(storedCrops));
   }, []);
 
-  // --- Actions ---
   const handleRegister = (e) => {
     e.preventDefault();
     const newUser = { ...user, registered: true };
@@ -255,14 +253,12 @@ export default function Dashboard() {
   const analyzeImage = () => {
     setLoading(true);
     setTimeout(() => {
-      // Select random bilingual result
       const randomResult = PEST_DATABASE[Math.floor(Math.random() * PEST_DATABASE.length)];
       setScanResult(randomResult);
       setLoading(false);
     }, 2000);
   };
 
-  // --- Voice & Chat Logic ---
   const startListening = () => {
     if ('webkitSpeechRecognition' in window) {
       const recognition = new window.webkitSpeechRecognition();
@@ -278,7 +274,7 @@ export default function Dashboard() {
       
       recognition.onerror = () => {
         setIsListening(false);
-        setShowChat(true); // Fallback to chat
+        setShowChat(true); 
       };
     } else {
       setShowChat(true);
@@ -287,7 +283,6 @@ export default function Dashboard() {
 
   const handleVoiceQuery = (text) => {
     let response = "";
-    // Basic Keyword Detection for Bangla
     if (text.includes("আবহাওয়া") || text.includes("weather")) response = `${t.weather}: ${weather?.temp || 30}°C.`;
     else if (text.includes("ফসল") || text.includes("crop")) response = `${t.inventory}: ${crops.length}.`;
     else {
@@ -300,16 +295,24 @@ export default function Dashboard() {
     window.speechSynthesis.speak(utterance);
   };
 
+  // --- SMART CHAT BOT LOGIC ---
   const sendChatMessage = () => {
     if (!chatInput.trim()) return;
     const newHistory = [...chatMessages, { sender: 'user', text: chatInput }];
+    const lowerInput = chatInput.toLowerCase();
     
-    // Auto Response Logic
     let botReply = lang === 'bn' ? "ধন্যবাদ। বিষয়টি নোট করা হয়েছে।" : "Thank you. Noted.";
-    if (chatInput.includes("পোকা") || chatInput.includes("pest")) 
-        botReply = lang === 'bn' ? "পোকা দমনের জন্য স্ক্যানার ব্যবহার করুন।" : "Use the scanner for pest control.";
-    else if (chatInput.includes("বৃষ্টি") || chatInput.includes("rain")) 
-        botReply = lang === 'bn' ? "ফসল ঢেকে রাখুন।" : "Cover your crops.";
+
+    if (lang === 'bn') {
+        if (lowerInput.includes("পোকা") || lowerInput.includes("রোগ")) botReply = "পোকা দমনের জন্য 'স্ক্যানার' ব্যবহার করে ছবি তুলুন। আমি সঠিক সমাধান দিব।";
+        else if (lowerInput.includes("সার") || lowerInput.includes("ফলন")) botReply = "ধানের জন্য ইউরিয়া এবং পটাশ সার ব্যবহার করুন। মাটি পরীক্ষা করা জরুরি।";
+        else if (lowerInput.includes("বৃষ্টি") || lowerInput.includes("আবহাওয়া")) botReply = "বৃষ্টির সম্ভাবনা থাকলে ফসল পলিথিন দিয়ে ঢেকে রাখুন।";
+        else if (lowerInput.includes("সেচ") || lowerInput.includes("পানি")) botReply = "মাটি শুকিয়ে গেলে সেচ দিন, তবে অতিরিক্ত পানি জমতে দেবেন না।";
+        else if (lowerInput.includes("হ্যালো") || lowerInput.includes("হাই")) botReply = "নমস্কার! আমি হার্ভেস্টগার্ড সহকারী। আজ আপনাকে কীভাবে সাহায্য করতে পারি?";
+    } else {
+        if (lowerInput.includes("pest") || lowerInput.includes("bug")) botReply = "Please use the 'Scanner' to identify pests accurately.";
+        else if (lowerInput.includes("rain") || lowerInput.includes("weather")) botReply = "Cover crops if rain is expected.";
+    }
 
     setChatMessages([...newHistory, { sender: 'bot', text: botReply }]);
     setChatInput("");
@@ -355,7 +358,7 @@ export default function Dashboard() {
 
       <div className="p-4 max-w-2xl mx-auto space-y-6">
         
-        {/* --- TAB: MAP --- */}
+        {/* --- TAB: MAP (RESTORED POPUPS) --- */}
         {activeTab === 'map' && (
           <motion.div initial={{opacity:0}} animate={{opacity:1}} className="bg-white rounded-xl shadow-sm overflow-hidden border">
              <div className="p-4 bg-green-50 border-b flex justify-between"><h2 className="font-bold text-green-900 flex gap-2"><MapPin size={18}/> {t.riskMap}</h2></div>
@@ -375,12 +378,20 @@ export default function Dashboard() {
                   <button onClick={() => setMapZoom(z => Math.max(z - 0.2, 0.5))} className="w-8 h-8 bg-white rounded shadow font-bold">-</button>
                 </div>
              </div>
-             {selectedPin && (
-               <div className="p-4 bg-white border-t flex justify-between">
-                  <div><h3 className="font-bold">{lang === 'bn' ? selectedPin.cropBn : selectedPin.cropEn}</h3><p className="text-xs text-gray-500">{selectedPin.updated}</p></div>
-                  <div className={`px-2 py-1 rounded text-xs font-bold h-fit ${selectedPin.risk === 'High' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>{selectedPin.risk}</div>
-               </div>
-             )}
+             {/* RESTORED POPUP LOGIC */}
+             <AnimatePresence>
+               {selectedPin && (
+                 <motion.div initial={{y:20, opacity:0}} animate={{y:0, opacity:1}} exit={{y:20, opacity:0}} className="p-4 bg-white border-t flex justify-between items-center">
+                    <div>
+                      <h3 className="font-bold text-slate-800">{t.mapPopupCrop}: {selectedPin.crop}</h3>
+                      <p className="text-xs text-gray-500">{t.mapPopupTime}: {selectedPin.updated}</p>
+                    </div>
+                    <div className={`px-3 py-1 rounded-full text-xs font-bold ${selectedPin.risk === 'High' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                      {t.mapPopupRisk}: {selectedPin.risk}
+                    </div>
+                 </motion.div>
+               )}
+             </AnimatePresence>
           </motion.div>
         )}
 
@@ -457,7 +468,7 @@ export default function Dashboard() {
              <h2 className="text-xl font-bold mb-4">{t.addCropTitle}</h2>
              <form onSubmit={handleAddCrop} className="space-y-4">
                <select className="w-full p-3 border rounded bg-gray-50" onChange={(e) => setFormData({...formData, cropType: e.target.value})}>
-                 {CROP_TYPES.map((c, i) => <option key={i} value={lang === 'bn' ? c.bn : c.en}>{lang === 'bn' ? c.bn : c.en}</option>)}
+                 {CROP_TYPES.map((c, i) => <option key={i} value={c}>{c}</option>)}
                </select>
                <input required type="number" placeholder={t.weight} className="w-full p-3 border rounded" onChange={(e) => setFormData({...formData, weight: e.target.value})} />
                <input required type="date" className="w-full p-3 border rounded" onChange={(e) => setFormData({...formData, date: e.target.value})} />
