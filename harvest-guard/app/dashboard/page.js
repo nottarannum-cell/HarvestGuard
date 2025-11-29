@@ -23,6 +23,17 @@ const DISTRICT_COORDS = {
 
 const STORAGE_TYPES = ["চটের বস্তা (Jute Bag)", "সাইলো (Silo)", "খোলা জায়গা (Open Area)", "প্লাস্টিক ড্রাম (Plastic Drum)", "গোলাঘর (Granary)"];
 
+// --- VISUALS: Real-Life Crop Images ---
+const getCropImage = (cropName) => {
+  if (cropName.includes('Paddy') || cropName.includes('ধান')) return "https://images.unsplash.com/photo-1586771107445-d3ca888129ff?auto=format&fit=crop&w=150&q=80";
+  if (cropName.includes('Wheat') || cropName.includes('গম')) return "https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?auto=format&fit=crop&w=150&q=80";
+  if (cropName.includes('Potato') || cropName.includes('আলু')) return "https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&w=150&q=80";
+  if (cropName.includes('Maize') || cropName.includes('ভুট্টা')) return "https://images.unsplash.com/photo-1551754655-4d782bc51741?auto=format&fit=crop&w=150&q=80";
+  if (cropName.includes('Tomato') || cropName.includes('টমেটো')) return "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=150&q=80";
+  if (cropName.includes('Brinjal') || cropName.includes('বেগুন')) return "https://images.unsplash.com/photo-1615485499738-4c4b57422b78?auto=format&fit=crop&w=150&q=80";
+  return "https://images.unsplash.com/photo-1500937386664-56d1dfef3854?auto=format&fit=crop&w=150&q=80";
+};
+
 // --- DATA: CROPS ---
 const CROP_TYPES = [
   "ধান (Paddy)", 
@@ -33,17 +44,6 @@ const CROP_TYPES = [
   "বেগুন (Brinjal)",
   "টমেটো (Tomato)"
 ];
-
-// --- VISUALS: Real-Life Crop Images ---
-const getCropImage = (cropName) => {
-  if (cropName.includes('Paddy') || cropName.includes('ধান')) return "https://images.unsplash.com/photo-1586771107445-d3ca888129ff?auto=format&fit=crop&w=150&q=80";
-  if (cropName.includes('Wheat') || cropName.includes('গম')) return "https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?auto=format&fit=crop&w=150&q=80";
-  if (cropName.includes('Potato') || cropName.includes('আলু')) return "https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&w=150&q=80";
-  if (cropName.includes('Maize') || cropName.includes('ভুট্টা')) return "https://images.unsplash.com/photo-1551754655-4d782bc51741?auto=format&fit=crop&w=150&q=80";
-  if (cropName.includes('Tomato') || cropName.includes('টমেটো')) return "https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=150&q=80";
-  if (cropName.includes('Brinjal') || cropName.includes('বেগুন')) return "https://images.unsplash.com/photo-1615485499738-4c4b57422b78?auto=format&fit=crop&w=150&q=80";
-  return "https://images.unsplash.com/photo-1500937386664-56d1dfef3854?auto=format&fit=crop&w=150&q=80"; // Default
-};
 
 // --- PEST DATABASE ---
 const PEST_DATABASE = [
@@ -155,7 +155,8 @@ export default function Dashboard() {
   const [lang, setLang] = useState('bn');
   const t = TRANSLATIONS[lang];
   
-  const [user, setUser] = useState({ name: '', phone: '', registered: false });
+  // FIX: User state now includes 'district'
+  const [user, setUser] = useState({ name: '', phone: '', district: 'Dhaka', registered: false });
   const [crops, setCrops] = useState([]);
   const [weather, setWeather] = useState(null);
   
@@ -198,11 +199,17 @@ export default function Dashboard() {
         const storedUser = localStorage.getItem('hg_user');
         if (storedUser) {
             const parsedUser = JSON.parse(storedUser);
+            // Default to Dhaka if old user data exists without district
+            if (!parsedUser.district) parsedUser.district = 'Dhaka';
+            
             setUser(parsedUser);
             const userCropsKey = `hg_crops_${parsedUser.phone}`;
             const storedCrops = localStorage.getItem(userCropsKey);
             if (storedCrops) setCrops(JSON.parse(storedCrops));
             else setCrops([]); 
+            
+            // FIX: Load weather for User's Registered District on load
+            fetchWeather(parsedUser.district);
         }
     }
   }, []);
@@ -217,11 +224,14 @@ export default function Dashboard() {
     const existingCrops = localStorage.getItem(userCropsKey);
     if (existingCrops) setCrops(JSON.parse(existingCrops));
     else setCrops([]);
+    
+    // FIX: Fetch weather immediately after registration
+    fetchWeather(newUser.district);
   };
 
   const handleLogout = () => {
     localStorage.removeItem('hg_user');
-    setUser({ name: '', phone: '', registered: false });
+    setUser({ name: '', phone: '', district: 'Dhaka', registered: false });
     setCrops([]); 
     window.location.reload();
   };
@@ -232,7 +242,6 @@ export default function Dashboard() {
     let updatedCrops = [...crops, newCrop];
     setCrops(updatedCrops);
     localStorage.setItem(`hg_crops_${user.phone}`, JSON.stringify(updatedCrops));
-    fetchWeather(formData.location);
     alert(lang === 'bn' ? 'ফসল সফলভাবে যোগ করা হয়েছে!' : 'Crop added successfully!');
     setActiveTab('inventory'); 
   };
@@ -249,9 +258,10 @@ export default function Dashboard() {
     document.body.removeChild(link);
   };
 
+  // FIX: Weather tab uses User's Registered District by default
   useEffect(() => {
     if (user.registered && activeTab === 'weather') {
-       fetchWeather(formData.location); 
+       fetchWeather(user.district); 
     }
   }, [activeTab]);
 
@@ -396,7 +406,6 @@ export default function Dashboard() {
   if (!user.registered) {
     return (
       <div className="min-h-screen relative flex items-center justify-center p-4 font-sans bg-slate-100">
-        {/* Background Visual */}
         <div className="absolute inset-0 z-0">
            <img src="https://images.unsplash.com/photo-1533241242368-6927236532eb?auto=format&fit=crop&q=80&w=1920" className="w-full h-full object-cover opacity-20" alt="Farm Background" />
            <div className="absolute inset-0 bg-gradient-to-t from-green-50/90 to-transparent" />
@@ -417,8 +426,16 @@ export default function Dashboard() {
                <input required type="text" placeholder={lang === 'bn' ? "আপনার নাম" : "Your Name"} className="w-full pl-10 p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none bg-white/50" onChange={(e) => setUser({...user, name: e.target.value})} />
              </div>
              <div className="relative">
-               <mic className="absolute left-3 top-3.5 text-gray-400" size={20} />
+               <Mic className="absolute left-3 top-3.5 text-gray-400" size={20} />
                <input required type="tel" placeholder={lang === 'bn' ? "মোবাইল নম্বর" : "Mobile Number"} className="w-full pl-10 p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none bg-white/50" onChange={(e) => setUser({...user, phone: e.target.value})} />
+             </div>
+             {/* FIX: District Selector in Registration */}
+             <div className="relative">
+               <MapPin className="absolute left-3 top-3.5 text-gray-400" size={20} />
+               <select className="w-full pl-10 p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none bg-white/50 text-gray-700" onChange={(e) => setUser({...user, district: e.target.value})}>
+                  <option value="Dhaka">Select District (জেলা)</option>
+                  {Object.keys(DISTRICT_COORDS).map(d => <option key={d} value={d}>{d}</option>)}
+               </select>
              </div>
              <button type="submit" className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white py-4 rounded-xl font-bold shadow-lg transform active:scale-95 transition-all">{lang === 'bn' ? "নিবন্ধন করুন" : "Register"}</button>
           </form>
@@ -677,7 +694,7 @@ export default function Dashboard() {
                       <p className="text-xs text-slate-500 uppercase font-bold">Batches</p>
                   </div>
                   <div className="bg-slate-50 p-4 rounded-2xl">
-                      <p className="text-2xl font-black text-slate-800">{formData.location}</p>
+                      <p className="text-2xl font-black text-slate-800">{user.district}</p>
                       <p className="text-xs text-slate-500 uppercase font-bold">Region</p>
                   </div>
               </div>
